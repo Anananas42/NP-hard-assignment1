@@ -14,10 +14,9 @@ public class AStarProblem implements HeuristicProblem<BoardCompact, CAction> {
     List<Position> boxTargets;
 
     private class Position {
-        int tileNum, x, y;
+        int x, y;
 
-        public Position(int tileNum, int x, int y) {
-            this.tileNum = tileNum;
+        public Position(int x, int y) {
             this.x = x;
             this.y = y;
         }
@@ -37,7 +36,7 @@ public class AStarProblem implements HeuristicProblem<BoardCompact, CAction> {
                 int tileNum = this.initial.tile(targetX, targetY);
                 
                 if (!CTile.forSomeBox(tileNum)) continue;
-                boxTargets.add(new Position(tileNum, targetX, targetY));
+                boxTargets.add(new Position(targetX, targetY));
             }
         }
 
@@ -70,7 +69,7 @@ public class AStarProblem implements HeuristicProblem<BoardCompact, CAction> {
                 int tileNum = state.tile(x, y);
                 
                 if (!CTile.isSomeBox(tileNum)) continue;
-                boxes.add(new Position(tileNum, x, y));
+                boxes.add(new Position(x, y));
             }
         }
         return boxes;
