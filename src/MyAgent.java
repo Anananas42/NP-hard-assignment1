@@ -1,16 +1,52 @@
 import static java.lang.System.out;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import agents.ArtificialAgent;
+import game.AStarProblem;
 import game.actions.EDirection;
 import game.actions.compact.*;
 import game.board.compact.BoardCompact;
+import search.Solution;
+
+
+public class MyAgent extends ArtificialAgent {
+	protected BoardCompact board;
+	protected int searchedNodes;
+
+	@Override
+	protected List<EDirection> think(BoardCompact board) {
+		this.board = board;
+		searchedNodes = 0;
+		long searchStartMillis = System.currentTimeMillis();
+
+		// Execute A*
+		AStarProblem problem = new AStarProblem(board);
+		Solution<BoardCompact, CAction> solution = AStar.search(problem);
+		
+		List<EDirection> result = new ArrayList<>();
+		for (CAction a : solution.actions) {
+			result.addAll(new ArrayList<>(Arrays.asList(a.getDirections())));
+		}
+
+		long searchTime = System.currentTimeMillis() - searchStartMillis;
+        
+        if (verbose) {
+            out.println("Nodes visited: " + searchedNodes);
+            out.printf("Performance: %.1f nodes/sec\n",
+                        ((double)searchedNodes / (double)searchTime * 1000));
+        }
+		
+		return result.isEmpty() ? null : result;
+	}
+}
 
 /**
  * The simplest Tree-DFS agent.
  * @author Jimmy
  */
+/*
 public class MyAgent extends ArtificialAgent {
 	protected BoardCompact board;
 	protected int searchedNodes;
@@ -81,3 +117,4 @@ public class MyAgent extends ArtificialAgent {
 		return false;
 	}
 }
+*/
