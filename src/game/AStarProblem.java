@@ -116,7 +116,6 @@ public class AStarProblem implements HeuristicProblem<BoardCompact, CAction> {
         for (Position box : boxes) {
             totalBoxDistances += getClosestTargetDistance(boxes, box);
         }
-
-        return totalBoxDistances;
+        return 50 * totalBoxDistances;
     }
 }

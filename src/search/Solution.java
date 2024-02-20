@@ -6,9 +6,10 @@ public class Solution<S, A> {
   public List<A> actions;  // series of actions from start state to goal state
   public S goalState;      // goal state that was reached
   public double pathCost;  // total cost from start state to goal
+  public int searchedNodes;
 
-  public Solution(List<A> actions, S goalState, double pathCost) {
-    this.actions = actions; this.goalState = goalState; this.pathCost = pathCost;
+  public Solution(List<A> actions, S goalState, double pathCost, int searchedNodes) {
+    this.actions = actions; this.goalState = goalState; this.pathCost = pathCost; this.searchedNodes = searchedNodes;
   }
 
   // Return true if this is a valid solution to the given problem.

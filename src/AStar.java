@@ -6,6 +6,7 @@ import search.*;
 
 public class AStar<S, A> {
   public static <S, A> Solution<S, A> search(HeuristicProblem<S, A> prob) {
+    int searchedNodes = 0;
     S initState = prob.initialState();
 
     // Initialize priority queue with initial state and value 0
@@ -33,6 +34,7 @@ public class AStar<S, A> {
     while (!remaining.isEmpty()) {
       // Pick next element from queue and mark it visited
       currentState = remaining.poll();
+      searchedNodes++;
 
       if (prob.isGoal(currentState)) break;
 
@@ -80,7 +82,7 @@ public class AStar<S, A> {
         pathCost += prob.cost(prevState, prevAction);
       }
 
-      return new Solution<S, A>(actions, goalState, pathCost);
+      return new Solution<S, A>(actions, goalState, pathCost, searchedNodes);
     }
 
     // Goal not reached, return null
