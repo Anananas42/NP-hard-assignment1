@@ -1,93 +1,94 @@
-package astar;
-import java.util.*;
+import search.*;
 
-import astar.search.*;
+import java.util.*;
 
 // A* search
 
 public class AStar<S, A> {
+
   public static <S, A> Solution<S, A> search(HeuristicProblem<S, A> prob) {
-    int searchedNodes = 0;
-    S initState = prob.initialState();
 
-    HashMap<S, Double> valueMap = new HashMap<S, Double>();
-    HashSet<S> visited = new HashSet<S>();
-    PriorityQueue<S> remaining = new PriorityQueue<S>(new Comparator<S>() {
-      public int compare(S s1, S s2) {
-        if (!valueMap.containsKey(s1)) {
-          return 1;
-        }else if (!valueMap.containsKey(s2)) {
-          return -1;
-        }
-        return Double.compare(valueMap.get(s1), valueMap.get(s2));
+    PriorityQueue<Node<S, A>> pq = new PriorityQueue<>();
+
+    // minimal cost to reach the state
+    Map<S, Double> costs = new HashMap<>();
+
+    // add initial node
+    S startState = prob.initialState();
+    pq.add(new Node<>(startState, null, null, 0, prob.estimate(startState)));
+    costs.put(startState, 0.0);
+
+    while (!pq.isEmpty()) {
+      Node<S, A> curr = pq.poll();
+
+      if (prob.isGoal(curr.getState())) {
+        // collect actions in the parent nodes in reversed order (from goal state to initial state)
+        return getSolution(curr);
       }
-    });
 
-    HashMap<S, S> prevStatesMap = new HashMap<S, S>();
-    HashMap<S, A> prevActionMap = new HashMap<S, A>();
+      for (A action : prob.actions(curr.getState())) {
+        S nextState = prob.result(curr.getState(), action);
+        double nextCost = costs.get(curr.getState()) + prob.cost(curr.getState(), action);
 
-    // Initialize the PQ with initial state
-    valueMap.put(initState, prob.estimate(initState));
-    remaining.add(initState);
-
-    // -- Main loop --
-    S currentState = null;
-    Double currentValue;
-    while (!remaining.isEmpty()) {
-      // Pick next element from queue and mark it visited
-      currentState = remaining.poll();
-      searchedNodes++;
-
-      if (prob.isGoal(currentState)) break;
-
-      visited.add(currentState);
-
-      // Get current value
-      currentValue = valueMap.get(currentState);
-
-      // Get its neighbours and filter out visited ones
-      List<A> actions = prob.actions(currentState);
-
-      // -- iterate over unvisited neighbours --
-      for (A a : actions) {
-        S neighbourState = prob.result(currentState, a);
-        if (visited.contains(neighbourState)) continue;
-
-        double cost = prob.cost(currentState, a);
-
-        double newValue = (currentValue - prob.estimate(currentState)) + cost + prob.estimate(neighbourState);
-        
-        // Check if current value + edge cost + heuristic is smaller than neighbour's value and update it (reorders PQ)
-        if (!valueMap.containsKey(neighbourState) || newValue < valueMap.get(neighbourState)) {
-          valueMap.put(neighbourState, newValue);
-          remaining.add(neighbourState); // Duplicate will always be lower so the higher ones will be skipped since they'll already be marked as visited
-
-          // Keep track of previous nodes
-          prevStatesMap.put(neighbourState, currentState);
-          prevActionMap.put(neighbourState, a);
+        if (nextCost < costs.getOrDefault(nextState, Double.MAX_VALUE)) {
+          costs.put(nextState, nextCost);
+          Node<S, A> nextNode = new Node<>(nextState, action, curr, nextCost, prob.estimate(nextState));
+          pq.add(nextNode);
         }
       }
     }
 
-    // Goal reached, reconstruct solution
-    if (prob.isGoal(currentState)) {
-      S goalState = currentState;
-      List<A> actions = new ArrayList<A>();
-      double pathCost = 0;
-
-      A prevAction;
-      S prevState = currentState;
-      while (prevState != initState) {
-        prevAction = prevActionMap.get(prevState);
-        prevState = prevStatesMap.get(prevState);
-        actions.add(0, prevAction);
-        pathCost += prob.cost(prevState, prevAction);
-      }
-
-      return new Solution<S, A>(actions, goalState, pathCost, searchedNodes);
-    }
-
-    // Goal not reached, return null
     return null;
-  }     
+  }
+
+  private static <S, A> Solution<S, A> getSolution(Node<S, A> goalNode) {
+    List<A> actions = new ArrayList<>();
+    Node<S, A> currNode = goalNode;
+
+    while (currNode != null && currNode.getAction() != null) {
+      actions.add(currNode.getAction());
+      currNode = currNode.getParent();
+    }
+
+    Collections.reverse(actions);
+    return new Solution<>(actions, goalNode.state, goalNode.getCost());
+  }
+
+
+  private static class Node<S, A> implements Comparable<Node<S, A>> {
+    private S state;
+    private A action;
+    private Node<S, A> parent;
+    private double cost;
+    private double heuristicEstimate;
+
+    public Node(S state, A action, Node<S, A> parent, double cost, double heuristicEstimate) {
+      this.state = state;
+      this.action = action;
+      this.parent = parent;
+      this.cost = cost;
+      this.heuristicEstimate = heuristicEstimate;
+    }
+
+    public S getState() {
+      return state;
+    }
+
+    public A getAction() {
+      return action;
+    }
+
+    public Node<S, A> getParent() {
+      return parent;
+    }
+
+    public double getCost() {
+      return cost;
+    }
+
+    @Override
+    public int compareTo(Node<S, A> other) {
+      return Double.compare(this.cost + this.heuristicEstimate, other.cost + other.heuristicEstimate);
+    }
+  }
 }
