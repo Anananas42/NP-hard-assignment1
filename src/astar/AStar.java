@@ -1,6 +1,8 @@
-import search.*;
+package astar;
 
 import java.util.*;
+
+import astar.search.*;
 
 // A* search
 
@@ -9,6 +11,7 @@ public class AStar<S, A> {
   public static <S, A> Solution<S, A> search(HeuristicProblem<S, A> prob) {
 
     PriorityQueue<Node<S, A>> pq = new PriorityQueue<>();
+    int searchedNodes = 0;
 
     // minimal cost to reach the state
     Map<S, Double> costs = new HashMap<>();
@@ -19,11 +22,12 @@ public class AStar<S, A> {
     costs.put(startState, 0.0);
 
     while (!pq.isEmpty()) {
+      searchedNodes++;
       Node<S, A> curr = pq.poll();
 
       if (prob.isGoal(curr.getState())) {
         // collect actions in the parent nodes in reversed order (from goal state to initial state)
-        return getSolution(curr);
+        return getSolution(curr, searchedNodes);
       }
 
       for (A action : prob.actions(curr.getState())) {
@@ -41,7 +45,7 @@ public class AStar<S, A> {
     return null;
   }
 
-  private static <S, A> Solution<S, A> getSolution(Node<S, A> goalNode) {
+  private static <S, A> Solution<S, A> getSolution(Node<S, A> goalNode, int searchedNodes) {
     List<A> actions = new ArrayList<>();
     Node<S, A> currNode = goalNode;
 
@@ -51,7 +55,7 @@ public class AStar<S, A> {
     }
 
     Collections.reverse(actions);
-    return new Solution<>(actions, goalNode.state, goalNode.getCost());
+    return new Solution<>(actions, goalNode.state, goalNode.getCost(), searchedNodes);
   }
 
 
