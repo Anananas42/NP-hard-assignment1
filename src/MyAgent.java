@@ -4,11 +4,12 @@ import java.util.Arrays;
 import java.util.List;
 
 import agents.ArtificialAgent;
-import game.AStarProblem;
+import astar.AStar;
+import astar.AStarProblem;
+import astar.search.Solution;
 import game.actions.EDirection;
 import game.actions.compact.*;
 import game.board.compact.BoardCompact;
-import search.Solution;
 
 
 public class MyAgent extends ArtificialAgent {

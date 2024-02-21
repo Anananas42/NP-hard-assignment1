@@ -1,4 +1,4 @@
-package search;
+package astar.search;
 
 import java.util.List;
 

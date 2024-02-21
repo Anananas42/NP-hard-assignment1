@@ -1,6 +1,7 @@
+package astar;
 import java.util.*;
 
-import search.*;
+import astar.search.*;
 
 // A* search
 
@@ -9,7 +10,6 @@ public class AStar<S, A> {
     int searchedNodes = 0;
     S initState = prob.initialState();
 
-    // Initialize priority queue with initial state and value 0
     HashMap<S, Double> valueMap = new HashMap<S, Double>();
     HashSet<S> visited = new HashSet<S>();
     PriorityQueue<S> remaining = new PriorityQueue<S>(new Comparator<S>() {
@@ -22,9 +22,11 @@ public class AStar<S, A> {
         return Double.compare(valueMap.get(s1), valueMap.get(s2));
       }
     });
+
     HashMap<S, S> prevStatesMap = new HashMap<S, S>();
     HashMap<S, A> prevActionMap = new HashMap<S, A>();
 
+    // Initialize the PQ with initial state
     valueMap.put(initState, prob.estimate(initState));
     remaining.add(initState);
 

@@ -1,4 +1,4 @@
-package search;
+package astar.search;
 
 // S = state type, A = action type
 public interface HeuristicProblem<S, A> extends Problem<S, A> {

@@ -1,13 +1,13 @@
-package game;
+package astar;
 
 import java.util.*;
 
+import astar.search.HeuristicProblem;
 import game.actions.compact.CAction;
 import game.actions.compact.CMove;
 import game.actions.compact.CPush;
 import game.board.compact.BoardCompact;
 import game.board.compact.CTile;
-import search.HeuristicProblem;
 
 public class AStarProblem implements HeuristicProblem<BoardCompact, CAction> {
     BoardCompact initial;
