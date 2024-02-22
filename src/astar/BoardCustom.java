@@ -5,8 +5,8 @@ import java.util.*;
 import astar.actions.TAction;
 import astar.actions.TMove;
 import astar.actions.TPush;
+import astar.actions.TPushSequence;
 import astar.actions.TWalk;
-import astar.actions.TWalkPush;
 import game.actions.EDirection;
 import game.board.oop.EEntity;
 import game.board.slim.BoardSlim;
@@ -42,12 +42,12 @@ public class BoardCustom extends BoardSlim {
         List<TAction> result = new ArrayList<>();
 
         result.addAll(getWalkActions());
-        result.addAll(getWalkPushActions());
+        result.addAll(getPushSequenceActions());
         
         return result;
     }
 
-    private List<TWalkPush> getWalkPushActions() {
+    private List<TPushSequence> getPushSequenceActions() {
         // For all directions, check if there's a box next to the agent and can be pushed
         List<EDirection> possibleDirections = new ArrayList<>();
         for (TPush push : TPush.getActions()) { 
@@ -57,7 +57,7 @@ public class BoardCustom extends BoardSlim {
         }
 
         // Compress tunnels or paths along a wall into a single TWalkPush action
-        List<TWalkPush> result = new ArrayList<>();
+        List<TPushSequence> result = new ArrayList<>();
         for (EDirection dir : possibleDirections) {
             // TODO
 
