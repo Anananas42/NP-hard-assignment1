@@ -2,54 +2,40 @@ package astar;
 
 import java.util.*;
 
+import astar.actions.TAction;
 import astar.search.HeuristicProblem;
-import game.actions.compact.CAction;
-import game.actions.compact.CMove;
-import game.actions.compact.CPush;
-import game.board.compact.BoardCompact;
 
-public class AStarProblem implements HeuristicProblem<BoardCompact, CAction> {
-    BoardCompact initState;
+
+public class AStarProblem implements HeuristicProblem<BoardCustom, TAction> {
+    BoardCustom initState;
     
-    public AStarProblem(BoardCompact initialState) {
+    public AStarProblem(BoardCustom initialState) {
         this.initState = initialState;
     }
 
-    public BoardCompact initialState() {
+    public BoardCustom initialState() {
         return this.initState;
     }
 
-    public List<CAction> actions(BoardCompact state) {
-        List<CAction> actions = new ArrayList<CAction>(4);
-		
-		for (CMove move : CMove.getActions()) {
-			if (move.isPossible(state)) {
-				actions.add(move);
-			}
-		}
-		for (CPush push : CPush.getActions()) {
-			if (push.isPossible(state)) {
-				actions.add(push);
-			}
-		}
-        return actions;
+    public List<TAction> actions(BoardCustom state) {
+        return state.getActions();
     }
 
-    public BoardCompact result(BoardCompact s, CAction action) {
-        BoardCompact newState = s.clone();
+    public BoardCustom result(BoardCustom s, TAction action) {
+        BoardCustom newState = s.clone();
         action.perform(newState);
         return newState;
     }
 
-    public boolean isGoal(BoardCompact state) {
+    public boolean isGoal(BoardCustom state) {
         return state.isVictory();
     }
 
-    public double cost(BoardCompact state, CAction action) {
+    public double cost(BoardCustom state, TAction action) {
         return action.getSteps();
     }
 
-    public double estimate(BoardCompact state) {
+    public double estimate(BoardCustom state) {
         return 0.0;
     }
 }

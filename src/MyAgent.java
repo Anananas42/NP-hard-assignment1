@@ -6,28 +6,29 @@ import java.util.List;
 import agents.ArtificialAgent;
 import astar.AStar;
 import astar.AStarProblem;
+import astar.BoardCustom;
+import astar.actions.TAction;
 import astar.search.Solution;
 import game.actions.EDirection;
-import game.actions.compact.*;
 import game.board.compact.BoardCompact;
 
 
 public class MyAgent extends ArtificialAgent {
-	protected BoardCompact board;
+	protected BoardCustom board;
 	protected int searchedNodes;
 
 	@Override
 	protected List<EDirection> think(BoardCompact board) {
-		this.board = board;
+		this.board = board.makeBoardCustom();
 		searchedNodes = 0;
 		long searchStartMillis = System.currentTimeMillis();
 
 		// Execute A*
-		AStarProblem problem = new AStarProblem(board);
-		Solution<BoardCompact, CAction> solution = AStar.search(problem);
+		AStarProblem problem = new AStarProblem(this.board);
+		Solution<BoardCustom, TAction> solution = AStar.search(problem);
 		
 		List<EDirection> result = new ArrayList<>();
-		for (CAction a : solution.actions) {
+		for (TAction a : solution.actions) {
 			result.addAll(new ArrayList<>(Arrays.asList(a.getDirections())));
 		}
 

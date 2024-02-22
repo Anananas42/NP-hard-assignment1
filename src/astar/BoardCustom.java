@@ -5,13 +5,10 @@ import java.util.*;
 import astar.actions.TAction;
 import astar.actions.TMove;
 import astar.actions.TPush;
-import astar.actions.TPushSequence;
 import astar.actions.TWalk;
-import game.actions.EDirection;
 import game.board.oop.EEntity;
 import game.board.slim.BoardSlim;
 
-@SuppressWarnings("unused")
 public class BoardCustom extends BoardSlim {
     // List with box positions calculated as x * width + y (List is efficient since number of boxes is small)
     List<Integer> boxes;
@@ -47,23 +44,24 @@ public class BoardCustom extends BoardSlim {
         return result;
     }
 
-    private List<TPushSequence> getPushSequenceActions() {
+    private List<TPush> getPushSequenceActions() {
         // For all directions, check if there's a box next to the agent and can be pushed
-        List<EDirection> possibleDirections = new ArrayList<>();
+        List<TPush> possibleDirections = new ArrayList<>();
         for (TPush push : TPush.getActions()) { 
             boolean isPossible = TPush.isPushPossible(this, playerX, playerY, push.getDirection());
             if (!isPossible) continue;
-            possibleDirections.add(push.getDirection()); 
+            possibleDirections.add(push); 
         }
 
         // Compress tunnels or paths along a wall into a single TWalkPush action
-        List<TPushSequence> result = new ArrayList<>();
-        for (EDirection dir : possibleDirections) {
-            // TODO
+        // Actually not worth it since the levels are fairly small
+        // List<TPushSequence> result = new ArrayList<>();
+        // for (EDirection dir : possibleDirections) {
+        //     // TODO
 
-        }
+        // }
 
-        return result;
+        return possibleDirections;
     }
 
     private List<TWalk> getWalkActions() {
@@ -115,6 +113,7 @@ public class BoardCustom extends BoardSlim {
                     if (costMap.containsKey(neighbour)) continue; // Already visited
                     q.add(neighbour);
                     costMap.put(neighbour, cost+1);
+                    prevMap.put(neighbour, curr);
                 }
             }
         }
@@ -134,14 +133,14 @@ public class BoardCustom extends BoardSlim {
 
     @Override
     public void moveBox(byte sourceTileX, byte sourceTileY, byte targetTileX, byte targetTileY) {
+        super.moveBox(sourceTileX, sourceTileY, targetTileX, targetTileY);
+
         // Update position of the moved box
         boxes.remove((int)sourceTileX * width() + sourceTileY);
         boxes.add((int)targetTileX * width() + targetTileY);
         
         // Possible walks need updating
         possibleWalks = null;
-
-        super.moveBox(sourceTileX, sourceTileY, targetTileX, targetTileY);
     }
 
     public void moveBox(int sourceTileX, int sourceTileY, int targetTileX, int targetTileY) {
@@ -173,17 +172,6 @@ public class BoardCustom extends BoardSlim {
     public void movePlayer(int sourceTileX, int sourceTileY, int targetTileX, int targetTileY) {
         movePlayer((byte)sourceTileX, (byte)sourceTileY, (byte)targetTileX, (byte)targetTileY);
     }
-    
-    @Override
-	public BoardCustom clone() {
-        BoardCustom result = (BoardCustom)super.clone();
-
-        if (this.boxes != null) {
-            result.boxes = new ArrayList<>(this.boxes);
-        }
-
-        return result;
-    }
 
     private List<Integer> getWalkableNeighbours(int position) {
         List<Integer> neighbours = new ArrayList<>();
@@ -196,5 +184,27 @@ public class BoardCustom extends BoardSlim {
         }
 
         return neighbours;
+    }
+
+
+    @Override
+	public BoardCustom clone() {
+        BoardCustom result = new BoardCustom(width(), height());
+		result.tiles = new byte[width()][height()];
+		for (int x = 0; x < width(); ++x) {
+			for (int y = 0; y < height(); ++y) {
+				result.tiles[x][y] = tiles[x][y];
+			}			
+		}
+		result.playerX = playerX;
+		result.playerY = playerY;
+		result.boxCount = boxCount;
+		result.boxInPlaceCount = boxInPlaceCount;
+
+        if (this.boxes != null) {
+            result.boxes = new ArrayList<>(this.boxes);
+        }
+
+        return result;
     }
 }
