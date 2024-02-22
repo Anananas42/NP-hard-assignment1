@@ -7,7 +7,6 @@ import game.actions.compact.CAction;
 import game.actions.compact.CMove;
 import game.actions.compact.CPush;
 import game.board.compact.BoardCompact;
-import game.board.compact.CTile;
 
 public class AStarProblem implements HeuristicProblem<BoardCompact, CAction> {
     BoardCompact initState;

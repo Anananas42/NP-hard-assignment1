@@ -67,6 +67,18 @@ public class TMove extends TAction {
 		// TILE WE WISH TO MOVE TO IS NOT FREE
 		return false;
 	}
+
+    // Custom signature that can work with move from a position that is passed as an argument
+	public int isPossible(BoardCustom board, byte x, byte y) {
+		// PLAYER ON THE EDGE
+		if (!isOnBoard(board, x, y, dir)) return -1;
+		
+		// TILE TO THE DIR IS FREE
+		if (TTile.isFree(board.tile(x+dir.dX, y+dir.dY))) return (x+dir.dX)*board.width() + (y+dir.dY);
+				
+		// TILE WE WISH TO MOVE TO IS NOT FREE
+		return -1;
+	}
 		
 	/**
 	 * PERFORM THE MOVE, no validation, call {@link #isPossible(BoardCustom, EDirection)} first!

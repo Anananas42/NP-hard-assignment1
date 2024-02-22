@@ -1,5 +1,8 @@
 package astar.actions;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import astar.BoardCustom;
 import game.actions.EDirection;
 import game.actions.oop.EActionType;
@@ -67,6 +70,20 @@ public class TWalk extends TAction {
 		if (fromX != x || fromY != y) {
 			board.movePlayer(x, y, fromX, fromY);
 		}
+	}
+
+	public static TWalk fromPositions(BoardCustom board, int startX, int startY, List<Integer> positions) {
+		EDirection[] directions = new EDirection[positions.size()];
+
+		int prevX = startX;
+		int prevY = startY;
+		int curr;
+		for (int i = 0; i < positions.size(); i++) {
+			curr = positions.get(i);
+			directions[i] = TAction.getDirectionFromPosition(prevX, prevY, curr / board.width(), curr % board.width());
+		}
+
+		return new TWalk(startX, startY, directions);
 	}
 
 	// Object

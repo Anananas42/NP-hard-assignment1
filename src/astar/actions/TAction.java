@@ -31,6 +31,26 @@ public abstract class TAction {
 	
 	public abstract void reverse(BoardCustom board);
 
+    public static EDirection getDirectionFromPosition(int x1, int y1, int x2, int y2) {
+        if (y1 == y2) {
+            switch (x2 - x1) {
+                case 1:
+                    return EDirection.RIGHT;
+                case -1:
+                    return EDirection.LEFT;
+            }
+        }else if (x1 == x2) {
+            switch (y2 - y1) {
+                case 1:
+                    return EDirection.DOWN;
+                case -1:
+                    return EDirection.UP;
+            }
+        }
+
+        return null;
+    }
+
     /**
 	 * If we move 1 step in given 'dir', will we still be at board? 
 	 * @param tile
