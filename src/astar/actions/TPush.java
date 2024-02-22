@@ -80,7 +80,8 @@ public class TPush extends TAction {
 		if (!TAction.isOnBoard(board, playerX+pushDirection.dX, playerY+pushDirection.dY, pushDirection)) return false;
 		
 		// TILE TO THE DIR OF THE BOX IS NOT FREE
-		if (!TTile.isFree(board.tile(playerX+pushDirection.dX+pushDirection.dX, playerY+pushDirection.dY+pushDirection.dY))) return false;
+		if (!TTile.isPlayer(board.tile(playerX+pushDirection.dX+pushDirection.dX, playerY+pushDirection.dY+pushDirection.dY))
+         && !TTile.isFree(board.tile(playerX+pushDirection.dX+pushDirection.dX, playerY+pushDirection.dY+pushDirection.dY))) return false;
 				
 		// YEP, WE CAN PUSH
 		return true;
