@@ -7,16 +7,18 @@ import java.util.List;
 import java.util.Set;
 
 import astar.BoardCustom;
+import astar.actions.TAction;
 import astar.actions.TWalk;
 import astar.tests.test_levels.TestLevelLoader;
+import game.board.oop.EEntity;
 
 public class BoardCustomTest {
 
     public static void main(String[] args) {
         File testLevelFile = new File("src/astar/tests/test_levels/test_level3.sok");
         BoardCustom board = new TestLevelLoader(testLevelFile).getBoardCustom();
-        board.debugPrint();
         System.out.printf("testing level in %s\n\n", testLevelFile.getName());
+        board.debugPrint();
         
         testPosition(board);
 
@@ -43,6 +45,16 @@ public class BoardCustomTest {
 
         testPossibleWalks(board, correctPossibleWalks);
         
+        List<TAction> actions = board.getActions();
+        for (TAction a : actions) {
+            System.out.println(a.toString());
+        }
+        TAction lastAction = actions.get(actions.size()-1);
+        lastAction.perform(board);
+
+        System.out.println("PLAYER: " + board.playerX + ", " + board.playerY);
+        board.debugPrint();
+
     }
 
     private static void testPosition(BoardCustom b) {

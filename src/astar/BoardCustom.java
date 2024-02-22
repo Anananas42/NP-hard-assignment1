@@ -7,7 +7,10 @@ import astar.actions.TMove;
 import astar.actions.TPush;
 import astar.actions.TWalk;
 import game.board.oop.EEntity;
+import game.board.oop.EPlace;
+import game.board.oop.ESpace;
 import game.board.slim.BoardSlim;
+import game.board.slim.STile;
 
 public class BoardCustom extends BoardSlim {
     // List with box positions calculated as x * width + y (List is efficient since number of boxes is small)
@@ -143,7 +146,7 @@ public class BoardCustom extends BoardSlim {
         super.moveBox(sourceTileX, sourceTileY, targetTileX, targetTileY);
 
         // Update position of the moved box
-        boxes.remove(getPosition(sourceTileX, sourceTileY));
+        boxes.remove((Integer)getPosition(sourceTileX, sourceTileY));
         boxes.add(getPosition(targetTileX, targetTileY));
         
         // Possible walks need updating
@@ -162,17 +165,7 @@ public class BoardCustom extends BoardSlim {
 	 * @param targetTileY
 	 */
 	public void movePlayer(byte sourceTileX, byte sourceTileY, byte targetTileX, byte targetTileY) {
-		int entity = tiles[sourceTileX][sourceTileY] & EEntity.SOME_ENTITY_FLAG;
-		
-		tiles[targetTileX][targetTileY] &= EEntity.NULLIFY_ENTITY_FLAG;
-		tiles[targetTileX][targetTileY] |= entity;
-		
-		tiles[sourceTileX][sourceTileY] &= EEntity.NULLIFY_ENTITY_FLAG;
-		tiles[sourceTileX][sourceTileY] |= EEntity.NONE.getFlag();	
-		
-		playerX = targetTileX;
-		playerY = targetTileY;
-
+		super.movePlayer(sourceTileX, sourceTileY, targetTileX, targetTileY);
         this.nullHash();
 	}
 
@@ -226,4 +219,28 @@ public class BoardCustom extends BoardSlim {
     public int getYFromPosition(int position) {
         return position / width();
     }
+
+    @Override
+    public void debugPrint() {
+		for (int y = 0; y < height(); ++y) {
+			for (int x = 0; x < width(); ++x) {
+				EEntity entity = EEntity.fromSlimFlag(tiles[x][y]);
+				EPlace place = EPlace.fromSlimFlag(tiles[x][y]);
+				ESpace space = ESpace.fromSlimFlag(tiles[x][y]);
+				
+				if (entity != null && entity != EEntity.NONE) {
+					System.out.print(entity.getSymbol());
+				} else
+				if (place != null && place != EPlace.NONE) {
+					System.out.print(place.getSymbol());
+				} else
+				if (space != null) {
+					System.out.print(space.getSymbol());
+				} else {
+					System.out.print("?");
+				}
+			}
+			System.out.println();
+		}
+	}
 }
