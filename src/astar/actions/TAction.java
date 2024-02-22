@@ -5,7 +5,6 @@ import game.actions.EDirection;
 import game.actions.compact.CWalk;
 import game.actions.compact.CWalkPush;
 import game.actions.oop.EActionType;
-import game.board.compact.BoardCompact;
 
 public abstract class TAction {
 	

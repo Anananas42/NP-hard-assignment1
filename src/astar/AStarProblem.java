@@ -46,7 +46,7 @@ public class AStarProblem implements HeuristicProblem<BoardCompact, CAction> {
     }
 
     public double cost(BoardCompact state, CAction action) {
-        return 1;
+        return action.getSteps();
     }
 
     public double estimate(BoardCompact state) {

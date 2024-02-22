@@ -4,8 +4,10 @@ import java.util.*;
 
 import astar.actions.TAction;
 import astar.actions.TMove;
+import astar.actions.TPush;
 import astar.actions.TWalk;
 import astar.actions.TWalkPush;
+import game.actions.EDirection;
 import game.board.oop.EEntity;
 import game.board.slim.BoardSlim;
 
@@ -37,13 +39,31 @@ public class BoardCustom extends BoardSlim {
     }
 
     public List<TAction> getActions() {
+        List<TAction> result = new ArrayList<>();
+
+        result.addAll(getWalkActions());
+        result.addAll(getWalkPushActions());
         
-        return null;
+        return result;
     }
 
-    private List<TWalkPush> getPushActions() {
+    private List<TWalkPush> getWalkPushActions() {
+        // For all directions, check if there's a box next to the agent and can be pushed
+        List<EDirection> possibleDirections = new ArrayList<>();
+        for (TPush push : TPush.getActions()) { 
+            boolean isPossible = TPush.isPushPossible(this, playerX, playerY, push.getDirection());
+            if (!isPossible) continue;
+            possibleDirections.add(push.getDirection()); 
+        }
 
-        return null;
+        // Compress tunnels or paths along a wall into a single TWalkPush action
+        List<TWalkPush> result = new ArrayList<>();
+        for (EDirection dir : possibleDirections) {
+            // TODO
+
+        }
+
+        return result;
     }
 
     private List<TWalk> getWalkActions() {
@@ -80,7 +100,7 @@ public class BoardCustom extends BoardSlim {
                 curr = q.poll();
 
                 // Retrieve result
-                if (destinations.contains(curr)) {
+                if (curr != initPosition && destinations.contains(curr)) {
                     List<Integer> result = new ArrayList<>();
                     int prevNode = curr;
                     while (prevNode != initPosition) {
