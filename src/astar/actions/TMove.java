@@ -74,7 +74,7 @@ public class TMove extends TAction {
 		if (!isOnBoard(board, x, y, dir)) return -1;
 		
 		// TILE TO THE DIR IS FREE
-		if (TTile.isFree(board.tile(x+dir.dX, y+dir.dY))) return (x+dir.dX)*board.width() + (y+dir.dY);
+		if (TTile.isFree(board.tile(x+dir.dX, y+dir.dY))) return board.getPosition(x+dir.dX, y+dir.dY);
 				
 		// TILE WE WISH TO MOVE TO IS NOT FREE
 		return -1;

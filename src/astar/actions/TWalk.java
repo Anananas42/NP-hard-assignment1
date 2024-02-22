@@ -71,18 +71,21 @@ public class TWalk extends TAction {
 		}
 	}
 
-	public static TWalk fromPositions(BoardCustom board, int startX, int startY, List<Integer> positions) {
-		EDirection[] directions = new EDirection[positions.size()];
+	public static TWalk fromPositions(BoardCustom board, int startX, int startY, int[] positionsX, int[] positionsY) {
+		EDirection[] directions = new EDirection[positionsX.length];
 
 		int prevX = startX;
 		int prevY = startY;
-		int curr;
-		for (int i = 0; i < positions.size(); i++) {
-			curr = positions.get(i);
-			directions[i] = TAction.getDirectionFromPosition(prevX, prevY, curr / board.width(), curr % board.width());
+		int currX, currY;
+		for (int i = 0; i < positionsX.length; i++) {
+			currX = positionsX[i];
+			currY = positionsY[i];
+			directions[i] = TAction.getDirectionFromPosition(prevX, prevY, currX, currY);
+			prevX = currX;
+			prevY = currY;
 		}
 
-		return new TWalk(startX, startY, directions);
+		return new TWalk(prevX, prevY, directions);
 	}
 
 	// Object

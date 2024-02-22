@@ -30,7 +30,7 @@ public class BoardCustom extends BoardSlim {
                 EEntity entity = EEntity.fromSlimFlag(tiles[x][y]);
 
                 if (entity == null || !entity.isSomeBox()) continue;
-                boxes.add(x * width() + y);
+                boxes.add(getPosition(x, y));
             }
         }
     }
@@ -44,7 +44,7 @@ public class BoardCustom extends BoardSlim {
         return result;
     }
 
-    private List<TPush> getPushSequenceActions() {
+    public List<TPush> getPushSequenceActions() {
         // For all directions, check if there's a box next to the agent and can be pushed
         List<TPush> possibleDirections = new ArrayList<>();
         for (TPush push : TPush.getActions()) { 
@@ -64,11 +64,18 @@ public class BoardCustom extends BoardSlim {
         return possibleDirections;
     }
 
-    private List<TWalk> getWalkActions() {
+    public List<TWalk> getWalkActions() {
         List<TWalk> result = new ArrayList<>();
         List<List<Integer>> possibleWalks = getPossibleWalks();
         for (List<Integer> positionSequence : possibleWalks) {
-            result.add(TWalk.fromPositions(this, playerX, playerY, positionSequence));
+            int[] positionsX = new int[positionSequence.size()];
+            int[] positionsY = new int[positionSequence.size()];
+            for (int i = 0; i < positionSequence.size(); i++) {
+                int position = positionSequence.get(i);
+                positionsX[i] = getXFromPosition(position);
+                positionsY[i] = getYFromPosition(position);
+            }
+            result.add(TWalk.fromPositions(this, playerX, playerY, positionsX, positionsY));
         }
 
         return result;
@@ -76,7 +83,7 @@ public class BoardCustom extends BoardSlim {
 
     // Agent always needs to go next to a box and start pushing in order to progress the game
     // This method returns all positions next to boxes that the agent can access
-    private List<List<Integer>> getPossibleWalks() {
+    public List<List<Integer>> getPossibleWalks() {
         if (possibleWalks == null) {
 
             // Recompute accessible positions
@@ -88,7 +95,7 @@ public class BoardCustom extends BoardSlim {
             Queue<Integer> q = new ArrayDeque<Integer>(); // For uniform cost, we can just use queue. (BFS basically)
             HashMap<Integer, Integer> prevMap = new HashMap<>();
 
-            int initPosition = playerX * width() + playerY;
+            int initPosition = getPosition(playerX, playerY);
             costMap.put(initPosition, 0);
             q.add(initPosition);
 
@@ -121,7 +128,7 @@ public class BoardCustom extends BoardSlim {
     }
 
     // Get all walkable positions next to boxes
-    private Set<Integer> getBoxNeighbourPositions() {
+    public Set<Integer> getBoxNeighbourPositions() {
         Set<Integer> result = new HashSet<>();
 
         for (Integer boxPosition : boxes) {
@@ -136,8 +143,8 @@ public class BoardCustom extends BoardSlim {
         super.moveBox(sourceTileX, sourceTileY, targetTileX, targetTileY);
 
         // Update position of the moved box
-        boxes.remove((int)sourceTileX * width() + sourceTileY);
-        boxes.add((int)targetTileX * width() + targetTileY);
+        boxes.remove(getPosition(sourceTileX, sourceTileY));
+        boxes.add(getPosition(targetTileX, targetTileY));
         
         // Possible walks need updating
         possibleWalks = null;
@@ -175,8 +182,8 @@ public class BoardCustom extends BoardSlim {
 
     private List<Integer> getWalkableNeighbours(int position) {
         List<Integer> neighbours = new ArrayList<>();
-        int y = position % width();
-        int x = position / width();
+        int x = getXFromPosition(position);
+        int y = getYFromPosition(position);
         for (TMove m : TMove.getActions()) { // Get moves in all directions
             int neighbourPosition = m.isPossible(this, (byte)x, (byte)y); // Check if move in a direction possible
             if (neighbourPosition == -1) continue; // Not possible, ignore this direction
@@ -206,5 +213,17 @@ public class BoardCustom extends BoardSlim {
         }
 
         return result;
+    }
+
+    public int getPosition(int x, int y) {
+        return x + y * width();
+    }
+
+    public int getXFromPosition(int position) {
+        return position % width();
+    }
+
+    public int getYFromPosition(int position) {
+        return position / width();
     }
 }
