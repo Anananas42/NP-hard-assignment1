@@ -8,9 +8,10 @@ import java.util.Set;
 
 import astar.BoardCustom;
 import astar.actions.TAction;
+import astar.actions.TMove;
 import astar.actions.TWalk;
 import astar.tests.test_levels.TestLevelLoader;
-import game.board.oop.EEntity;
+import game.actions.EDirection;
 
 public class BoardCustomTest {
 
@@ -51,10 +52,20 @@ public class BoardCustomTest {
         }
         TAction lastAction = actions.get(actions.size()-1);
         lastAction.perform(board);
+        lastAction.perform(board);
+        lastAction.perform(board);
+        new TMove(EDirection.RIGHT).perform(board);
+        new TMove(EDirection.DOWN).perform(board);
 
-        System.out.println("PLAYER: " + board.playerX + ", " + board.playerY);
         board.debugPrint();
 
+        actions = board.getActions();
+        for (TAction a : actions) {
+            System.out.println(a.toString());
+        }
+        actions.get(3).perform(board);
+
+        board.debugPrint();
     }
 
     private static void testPosition(BoardCustom b) {

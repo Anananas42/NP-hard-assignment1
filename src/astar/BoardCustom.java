@@ -10,7 +10,6 @@ import game.board.oop.EEntity;
 import game.board.oop.EPlace;
 import game.board.oop.ESpace;
 import game.board.slim.BoardSlim;
-import game.board.slim.STile;
 
 public class BoardCustom extends BoardSlim {
     // List with box positions calculated as x * width + y (List is efficient since number of boxes is small)
@@ -71,13 +70,21 @@ public class BoardCustom extends BoardSlim {
         List<TWalk> result = new ArrayList<>();
         List<List<Integer>> possibleWalks = getPossibleWalks();
         for (List<Integer> positionSequence : possibleWalks) {
-            int[] positionsX = new int[positionSequence.size()];
-            int[] positionsY = new int[positionSequence.size()];
+            int length = positionSequence.size();
+            int[] positionsX = new int[length];
+            int[] positionsY = new int[length];
             for (int i = 0; i < positionSequence.size(); i++) {
                 int position = positionSequence.get(i);
                 positionsX[i] = getXFromPosition(position);
                 positionsY[i] = getYFromPosition(position);
             }
+            // Add a TWalk only if the final position enables pushing a box at least in one of the four directions
+            boolean isPushPossible = false;
+            for (TPush push : TPush.getActions()) { 
+                isPushPossible = TPush.isPushPossible(this, positionsX[length-1], positionsY[length-1], push.getDirection());
+                if (isPushPossible) break;
+            }
+            if (!isPushPossible) continue;
             result.add(TWalk.fromPositions(this, playerX, playerY, positionsX, positionsY));
         }
 
@@ -87,44 +94,41 @@ public class BoardCustom extends BoardSlim {
     // Agent always needs to go next to a box and start pushing in order to progress the game
     // This method returns all positions next to boxes that the agent can access
     public List<List<Integer>> getPossibleWalks() {
-        if (possibleWalks == null) {
+        // Recompute accessible positions
+        possibleWalks = new ArrayList<>();
+        Set<Integer> destinations = getBoxNeighbourPositions();
 
-            // Recompute accessible positions
-            possibleWalks = new ArrayList<>();
-            Set<Integer> destinations = getBoxNeighbourPositions();
+        // BFS
+        HashMap<Integer, Integer> costMap = new HashMap<>(); // Useless now, but later can be used for heuristic (try closer boxes first)
+        Queue<Integer> q = new ArrayDeque<Integer>(); // For uniform cost, we can just use queue. (BFS basically)
+        HashMap<Integer, Integer> prevMap = new HashMap<>();
 
-            // BFS
-            HashMap<Integer, Integer> costMap = new HashMap<>(); // Useless now, but later can be used for heuristic (try closer boxes first)
-            Queue<Integer> q = new ArrayDeque<Integer>(); // For uniform cost, we can just use queue. (BFS basically)
-            HashMap<Integer, Integer> prevMap = new HashMap<>();
+        int initPosition = getPosition(playerX, playerY);
+        costMap.put(initPosition, 0);
+        q.add(initPosition);
 
-            int initPosition = getPosition(playerX, playerY);
-            costMap.put(initPosition, 0);
-            q.add(initPosition);
+        int curr = -1;
+        int cost;
+        while (!q.isEmpty()) {
+            curr = q.poll();
 
-            int curr = -1;
-            int cost;
-            while (!q.isEmpty()) {
-                curr = q.poll();
-
-                // Retrieve result
-                if (curr != initPosition && destinations.contains(curr)) {
-                    List<Integer> result = new ArrayList<>();
-                    int prevNode = curr;
-                    while (prevNode != initPosition) {
-                        result.add(0, prevNode);
-                        prevNode = prevMap.get(prevNode); // Correctly doesn't add the initial position.
-                    }
-                    possibleWalks.add(result);
+            // Retrieve result
+            if (curr != initPosition && destinations.contains(curr)) {
+                List<Integer> result = new ArrayList<>();
+                int prevNode = curr;
+                while (prevNode != initPosition) {
+                    result.add(0, prevNode);
+                    prevNode = prevMap.get(prevNode); // Correctly doesn't add the initial position.
                 }
+                possibleWalks.add(result);
+            }
 
-                cost = costMap.get(curr);
-                for (Integer neighbour : getWalkableNeighbours(curr)) {
-                    if (costMap.containsKey(neighbour)) continue; // Already visited
-                    q.add(neighbour);
-                    costMap.put(neighbour, cost+1);
-                    prevMap.put(neighbour, curr);
-                }
+            cost = costMap.get(curr);
+            for (Integer neighbour : getWalkableNeighbours(curr)) {
+                if (costMap.containsKey(neighbour)) continue; // Already visited
+                q.add(neighbour);
+                costMap.put(neighbour, cost+1);
+                prevMap.put(neighbour, curr);
             }
         }
         return possibleWalks;
@@ -148,9 +152,6 @@ public class BoardCustom extends BoardSlim {
         // Update position of the moved box
         boxes.remove((Integer)getPosition(sourceTileX, sourceTileY));
         boxes.add(getPosition(targetTileX, targetTileY));
-        
-        // Possible walks need updating
-        possibleWalks = null;
     }
 
     public void moveBox(int sourceTileX, int sourceTileY, int targetTileX, int targetTileY) {

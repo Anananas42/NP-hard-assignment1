@@ -1,7 +1,5 @@
 package astar.actions;
 
-import java.util.List;
-
 import astar.BoardCustom;
 import game.actions.EDirection;
 import game.actions.oop.EActionType;

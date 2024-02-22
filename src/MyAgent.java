@@ -28,6 +28,9 @@ public class MyAgent extends ArtificialAgent {
 		Solution<BoardCustom, TAction> solution = AStar.search(problem);
 		
 		List<EDirection> result = new ArrayList<>();
+		if (solution == null) {
+			throw new Error("[MyAgent] No solution found!");
+		}
 		for (TAction a : solution.actions) {
 			result.addAll(new ArrayList<>(Arrays.asList(a.getDirections())));
 		}
