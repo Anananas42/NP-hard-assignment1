@@ -1,5 +1,6 @@
 package game.board.compact;
 
+import astar.BoardCustom;
 import game.board.compressed.BoardCompressed;
 import game.board.compressed.MTile;
 import game.board.compressed.MTile.SubSlimTile;
@@ -296,6 +297,26 @@ public class BoardCompact implements Cloneable {
 			}
 		}
 		
+		return result;
+	}
+
+	// Custom board for A-star search
+	public BoardCustom makeBoardCustom() {
+		BoardCustom result = new BoardCustom((byte)width(), (byte)height());
+		result.boxCount = (byte)boxCount;
+		result.boxInPlaceCount = (byte)boxInPlaceCount;
+		result.playerX = (byte)playerX;
+		result.playerY = (byte)playerY;
+		
+		for (int x = 0; x < width(); ++x) {
+			for (int y = 0; y < height(); ++y) {
+				result.tiles[x][y] = computeSlimTile(x, y);
+			}
+		}
+
+		// Keep track of values that would be costly to completely recompute all the time and change with agent's actions
+		result.populateDynamicStateDescriptors();
+
 		return result;
 	}
 	
