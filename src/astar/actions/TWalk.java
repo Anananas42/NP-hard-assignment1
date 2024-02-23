@@ -6,6 +6,7 @@ import game.actions.oop.EActionType;
 
 public class TWalk extends TAction {
 
+	// Final position
 	private int x;
 	private int y;
 	
@@ -84,6 +85,14 @@ public class TWalk extends TAction {
 		}
 
 		return new TWalk(prevX, prevY, directions);
+	}
+
+	public int getDestinationX() {
+		return x;
+	}
+
+	public int getDestinationY() {
+		return y;
 	}
 
 	// Object

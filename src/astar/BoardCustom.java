@@ -7,6 +7,7 @@ import astar.actions.TMove;
 import astar.actions.TPush;
 import astar.actions.TTile;
 import astar.actions.TWalk;
+import astar.actions.TWalkPushSequence;
 import game.actions.EDirection;
 import game.board.oop.EEntity;
 import game.board.oop.EPlace;
@@ -29,7 +30,8 @@ public class BoardCustom extends BoardSlim {
 
     // Initialize information about the state that will change as agent performs actions
     // but would be costly to recompute from scratch every time
-    // THIS METHOD IS CALLED ONLY ONCE AT START
+    // THIS METHOD IS CALLED ONLY ONCE WHEN CREATING THE BOARD 
+    // (then this precomputed result is copied every time and only slightly changed with actions)
     public void populateDynamicStateDescriptors() {
         for (int y = 0; y < height(); ++y) {
 			for (int x = 0; x < width(); ++x) {
@@ -41,33 +43,39 @@ public class BoardCustom extends BoardSlim {
         }
     }
 
-    public List<TAction> getActions() {
+    public List<TAction> getActions(boolean[][] isSimpleDeadlock) {
         List<TAction> result = new ArrayList<>();
 
-        result.addAll(getPushSequenceActions()); // Add pushes first to prioritize them
-        result.addAll(getWalkActions());
+        // Add all pushes from the player's current position
+        result.addAll(getPushesWithoutDeadlock(playerX, playerY, isSimpleDeadlock));
+        // Add all WalkPush actions
+        result.addAll(getWalkPushActions(isSimpleDeadlock));
         
         return result;
     }
 
-    public List<TPush> getPushSequenceActions() {
-        // For all directions, check if there's a box next to the agent and can be pushed
-        List<TPush> possibleDirections = new ArrayList<>();
+    public List<TWalkPushSequence> getWalkPushActions(boolean[][] isSimpleDeadlock) {
+        List<TWalkPushSequence> result = new ArrayList<>();
+        List<TWalk> walkActions = getWalkActions();
+        for (TWalk walk : walkActions) {
+            for (TPush push : getPushesWithoutDeadlock(walk.getDestinationX(), walk.getDestinationY(), isSimpleDeadlock)) {
+                result.add(new TWalkPushSequence(walk, push));
+            }
+        }
+        return result;
+    }
+
+    // Get a list of pushes from a position that do not result in a deadlock
+    private List<TPush> getPushesWithoutDeadlock(int x, int y, boolean[][] isSimpleDeadlock) {
+        List<TPush> result = new ArrayList<>();
         for (TPush push : TPush.getActions()) { 
-            boolean isPossible = TPush.isPushPossible(this, playerX, playerY, push.getDirection());
-            if (!isPossible) continue;
-            possibleDirections.add(push); 
+            boolean isPossible = TPush.isPushPossible(this, x, y, push.getDirection());
+            EDirection dir = push.getDirection();
+            if (!isPossible || isSimpleDeadlock[x+dir.dX+dir.dX][y+dir.dY+dir.dY]) continue;
+            result.add(push);
         }
 
-        // Compress tunnels or paths along a wall into a single TWalkPush action
-        // Actually not worth it since the levels are fairly small
-        // List<TPushSequence> result = new ArrayList<>();
-        // for (EDirection dir : possibleDirections) {
-        //     // TODO
-
-        // }
-
-        return possibleDirections;
+        return result;
     }
 
     public List<TWalk> getWalkActions() {
@@ -267,24 +275,4 @@ public class BoardCustom extends BoardSlim {
 		}
 	}
 
-    // Assumes unchanging position of targets and walls. Computed from box positions and accessible neighbouring tiles to boxes.
-    // Optimized for A* to correctly return same hash for states that shouldn't be revisited in the A*
-    // DOES NOT GUARANTEE OPTIMAL SOLUTION ANYMORE, but makes finding a solution much faster
-	// public int hashCodeAstar() {
-    //     int hash = 0;
-    //     for (int i = 0; i < boxes.size(); i++) {
-    //         hash += 290317 * boxes.get(i);
-    //     }
-
-	// 	for (byte x = 0; x < width(); ++x) {
-    //         for (byte y = 0; y < height(); ++y) {
-    //             hash += (290317 * x + 97 * y) * tiles[x][y];
-    //         }
-    //     }
-	// 	return hash;
-	// }
-    // Wrong. This would prevent pushing another box.
-    // Further improvement. Just return possible box pushes. TWalk does not need to be returned at all actually.
-    // Also precompute if pushes are accessible to the player ONLY every time a box is moved.
-    // When A* finishes, simply fill in the blanks. Compute the steps, including walking etc., but during search, operate only on these high level actions.
 }

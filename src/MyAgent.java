@@ -18,13 +18,13 @@ public class MyAgent extends ArtificialAgent {
 	protected int searchedNodes;
 
 	@Override
-	protected List<EDirection> think(BoardCompact board) {
-		this.board = board.makeBoardCustom();
+	protected List<EDirection> think(BoardCompact boardCompact) {
+		this.board = boardCompact.makeBoardCustom();
 		searchedNodes = 0;
 		long searchStartMillis = System.currentTimeMillis();
 
 		// Execute A*
-		AStarProblem problem = new AStarProblem(this.board);
+		AStarProblem problem = new AStarProblem(this.board, boardCompact);
 		Solution<BoardCustom, TAction> solution = AStar.search(problem);
 		
 		List<EDirection> result = new ArrayList<>();

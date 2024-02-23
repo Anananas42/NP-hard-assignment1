@@ -5,16 +5,19 @@ import java.util.*;
 import astar.actions.TAction;
 import astar.heuristics.MinDistFromTargetsHeuristic;
 import astar.search.HeuristicProblem;
+import game.board.compact.BoardCompact;
 
 
 public class AStarProblem implements HeuristicProblem<BoardCustom, TAction> {
     BoardCustom initState;
 
     MinDistFromTargetsHeuristic minDistHeuristic;
+    boolean[][] isSimpleDeadlock;
     
-    public AStarProblem(BoardCustom initialState) {
+    public AStarProblem(BoardCustom initialState, BoardCompact boardCompact) {
         this.initState = initialState;
         this.minDistHeuristic = new MinDistFromTargetsHeuristic(initialState);
+        this.isSimpleDeadlock = DeadSquareDetector.detect(boardCompact);
     }
 
     public BoardCustom initialState() {
@@ -22,7 +25,7 @@ public class AStarProblem implements HeuristicProblem<BoardCustom, TAction> {
     }
 
     public List<TAction> actions(BoardCustom state) {
-        return state.getActions();
+        return state.getActions(isSimpleDeadlock);
     }
 
     public BoardCustom result(BoardCustom s, TAction action) {

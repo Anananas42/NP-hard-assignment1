@@ -46,7 +46,7 @@ public class BoardCustomTest {
 
         testPossibleWalks(board, correctPossibleWalks);
         
-        List<TAction> actions = board.getActions();
+        List<TAction> actions = board.getActions(new boolean[0][0]);
         for (TAction a : actions) {
             System.out.println(a.toString());
         }
@@ -59,7 +59,7 @@ public class BoardCustomTest {
 
         board.debugPrint();
 
-        actions = board.getActions();
+        actions = board.getActions(new boolean[0][0]);
         for (TAction a : actions) {
             System.out.println(a.toString());
         }
