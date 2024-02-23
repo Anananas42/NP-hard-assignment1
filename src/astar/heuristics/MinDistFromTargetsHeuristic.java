@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Queue;
-import java.util.Set;
 
 import astar.BoardCustom;
 import game.board.oop.EPlace;

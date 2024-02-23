@@ -71,7 +71,7 @@ public class BoardCustom extends BoardSlim {
         for (TPush push : TPush.getActions()) { 
             boolean isPossible = TPush.isPushPossible(this, x, y, push.getDirection());
             EDirection dir = push.getDirection();
-            if (!isPossible || isSimpleDeadlock[x+dir.dX+dir.dX][y+dir.dY+dir.dY]) continue;
+            if (!isPossible || isSimpleDeadlock[x+dir.dX+dir.dX][y+dir.dY+dir.dY] || DeadSquareDetector.isFreezeDeadlock(dir, x, y, this)) continue;
             result.add(push);
         }
 
