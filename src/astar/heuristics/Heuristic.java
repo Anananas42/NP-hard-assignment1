@@ -1,6 +1,7 @@
 package astar.heuristics;
 
-// S = state type
-public interface Heuristic<S> {
-    double estimate(S state);  // optimistic estimate of cost from state to goal
+import astar.BoardCustom;
+
+public interface Heuristic {
+    public double estimate(BoardCustom state);  // optimistic estimate of cost from state to goal
 }

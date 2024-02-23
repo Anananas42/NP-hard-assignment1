@@ -3,14 +3,18 @@ package astar;
 import java.util.*;
 
 import astar.actions.TAction;
+import astar.heuristics.MinDistFromTargetsHeuristic;
 import astar.search.HeuristicProblem;
 
 
 public class AStarProblem implements HeuristicProblem<BoardCustom, TAction> {
     BoardCustom initState;
+
+    MinDistFromTargetsHeuristic minDistHeuristic;
     
     public AStarProblem(BoardCustom initialState) {
         this.initState = initialState;
+        this.minDistHeuristic = new MinDistFromTargetsHeuristic(initialState);
     }
 
     public BoardCustom initialState() {
@@ -36,6 +40,7 @@ public class AStarProblem implements HeuristicProblem<BoardCustom, TAction> {
     }
 
     public double estimate(BoardCustom state) {
-        return 0.0;
+
+        return this.minDistHeuristic.estimate(state);
     }
 }

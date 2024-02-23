@@ -5,11 +5,15 @@ import java.util.*;
 import astar.actions.TAction;
 import astar.actions.TMove;
 import astar.actions.TPush;
+import astar.actions.TTile;
 import astar.actions.TWalk;
+import game.actions.EDirection;
 import game.board.oop.EEntity;
 import game.board.oop.EPlace;
 import game.board.oop.ESpace;
 import game.board.slim.BoardSlim;
+
+
 
 public class BoardCustom extends BoardSlim {
     // List with box positions calculated as x * width + y (List is efficient since number of boxes is small)
@@ -40,8 +44,8 @@ public class BoardCustom extends BoardSlim {
     public List<TAction> getActions() {
         List<TAction> result = new ArrayList<>();
 
+        result.addAll(getPushSequenceActions()); // Add pushes first to prioritize them
         result.addAll(getWalkActions());
-        result.addAll(getPushSequenceActions());
         
         return result;
     }
@@ -99,16 +103,16 @@ public class BoardCustom extends BoardSlim {
         Set<Integer> destinations = getBoxNeighbourPositions();
 
         // BFS
-        HashMap<Integer, Integer> costMap = new HashMap<>(); // Useless now, but later can be used for heuristic (try closer boxes first)
+        /// HashMap<Integer, Integer> costMap = new HashMap<>(); // Useless now, but later can be used for heuristic (try closer boxes first)
         Queue<Integer> q = new ArrayDeque<Integer>(); // For uniform cost, we can just use queue. (BFS basically)
         HashMap<Integer, Integer> prevMap = new HashMap<>();
 
         int initPosition = getPosition(playerX, playerY);
-        costMap.put(initPosition, 0);
+        // costMap.put(initPosition, 0);
         q.add(initPosition);
 
         int curr = -1;
-        int cost;
+        // int cost;
         while (!q.isEmpty()) {
             curr = q.poll();
 
@@ -123,11 +127,11 @@ public class BoardCustom extends BoardSlim {
                 possibleWalks.add(result);
             }
 
-            cost = costMap.get(curr);
+            // cost = costMap.get(curr);
             for (Integer neighbour : getWalkableNeighbours(curr)) {
-                if (costMap.containsKey(neighbour)) continue; // Already visited
+                if (prevMap.containsKey(neighbour)) continue; // Already visited
                 q.add(neighbour);
-                costMap.put(neighbour, cost+1);
+                // costMap.put(neighbour, cost+1);
                 prevMap.put(neighbour, curr);
             }
         }
@@ -187,6 +191,20 @@ public class BoardCustom extends BoardSlim {
         return neighbours;
     }
 
+    public List<Integer> getNonWallNeighbours(int position) {
+        List<Integer> neighbours = new ArrayList<>();
+        int x = getXFromPosition(position);
+        int y = getYFromPosition(position);
+        for (TMove m : TMove.getActions()) { // Get moves in all directions
+            EDirection dir = m.getDirection();
+            if (TMove.isOnBoard(this, (byte)x, (byte)y, m.getDirection()) && !TTile.isWall(tile(x+dir.dX, y+dir.dY))) {
+                neighbours.add(getPosition(x+dir.dX, y+dir.dY));
+            }
+        }
+
+        return neighbours;
+    }
+
 
     @Override
 	public BoardCustom clone() {
@@ -221,6 +239,10 @@ public class BoardCustom extends BoardSlim {
         return position / width();
     }
 
+    public List<Integer> getBoxes() {
+        return boxes;
+    }
+
     @Override
     public void debugPrint() {
 		for (int y = 0; y < height(); ++y) {
@@ -244,4 +266,25 @@ public class BoardCustom extends BoardSlim {
 			System.out.println();
 		}
 	}
+
+    // Assumes unchanging position of targets and walls. Computed from box positions and accessible neighbouring tiles to boxes.
+    // Optimized for A* to correctly return same hash for states that shouldn't be revisited in the A*
+    // DOES NOT GUARANTEE OPTIMAL SOLUTION ANYMORE, but makes finding a solution much faster
+	// public int hashCodeAstar() {
+    //     int hash = 0;
+    //     for (int i = 0; i < boxes.size(); i++) {
+    //         hash += 290317 * boxes.get(i);
+    //     }
+
+	// 	for (byte x = 0; x < width(); ++x) {
+    //         for (byte y = 0; y < height(); ++y) {
+    //             hash += (290317 * x + 97 * y) * tiles[x][y];
+    //         }
+    //     }
+	// 	return hash;
+	// }
+    // Wrong. This would prevent pushing another box.
+    // Further improvement. Just return possible box pushes. TWalk does not need to be returned at all actually.
+    // Also precompute if pushes are accessible to the player ONLY every time a box is moved.
+    // When A* finishes, simply fill in the blanks. Compute the steps, including walking etc., but during search, operate only on these high level actions.
 }
