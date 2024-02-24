@@ -7,7 +7,6 @@ import agents.ArtificialAgent;
 import astar.AStar;
 import astar.AStarProblem;
 import astar.BoardCustom;
-import astar.DeadSquareDetector;
 import astar.actions.TAction;
 import astar.search.Solution;
 import game.actions.EDirection;

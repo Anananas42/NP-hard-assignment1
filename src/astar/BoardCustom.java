@@ -8,6 +8,7 @@ import astar.actions.TPush;
 import astar.actions.TTile;
 import astar.actions.TWalk;
 import astar.actions.TWalkPushSequence;
+import astar.detectors.DeadSquareDetector;
 import game.actions.EDirection;
 import game.board.oop.EEntity;
 import game.board.oop.EPlace;
