@@ -57,13 +57,13 @@ public class DeadSquareDetector {
 
     private static void precomputeSimpleDeadlocks(BoardCompact board) {
         // For analysis
-        frozenDeadlockCount = 0;
-        frozenDeadlockCallsCount = 0;
-        frozenDeadlockSearchTime = 0;
+        // frozenDeadlockCount = 0;
+        // frozenDeadlockCallsCount = 0;
+        // frozenDeadlockSearchTime = 0;
 
-        bipartiteDeadlockCount = 0;
-        bipartiteDeadlockCallsCount = 0;
-        bipartiteDeadlockSearchTime = 0;
+        // bipartiteDeadlockCount = 0;
+        // bipartiteDeadlockCallsCount = 0;
+        // bipartiteDeadlockSearchTime = 0;
 
         // Get targets
         isSimpleDeadlock = new boolean[board.width()][board.height()];
@@ -172,8 +172,8 @@ public class DeadSquareDetector {
 
     // Checks not only that every target has a box that can reach it, but also that there are enough boxes to distribute to the targets
     public static boolean isBipartiteDeadlock(EDirection pushDirection, int x, int y, BoardCustom b) {
-        bipartiteDeadlockCallsCount++;
-        long searchStartMillis = System.currentTimeMillis();
+        // bipartiteDeadlockCallsCount++;
+        // long searchStartMillis = System.currentTimeMillis();
 
         // Check if there exists a target that no box can reach
         // Box position before push
@@ -205,8 +205,8 @@ public class DeadSquareDetector {
                 }
             }
             reachableBoxesByTarget.add(reachableBoxes);
-            if (isUnreachable) bipartiteDeadlockCount++;
-            bipartiteDeadlockSearchTime += System.currentTimeMillis() - searchStartMillis;
+            // if (isUnreachable) bipartiteDeadlockCount++;
+            // bipartiteDeadlockSearchTime += System.currentTimeMillis() - searchStartMillis;
             if (isUnreachable) return true;
         }
 
@@ -222,14 +222,14 @@ public class DeadSquareDetector {
         //     System.out.println(x + ", " + y + ", " + pushDirection.toString());
         //     b.debugPrint();
         // }
-        if (matchingSize != targetX.size()) bipartiteDeadlockCount++;
-        bipartiteDeadlockSearchTime += System.currentTimeMillis() - searchStartMillis;
+        // if (matchingSize != targetX.size()) bipartiteDeadlockCount++;
+        // bipartiteDeadlockSearchTime += System.currentTimeMillis() - searchStartMillis;
         return matchingSize != targetX.size();
     }
 
     public static boolean isFreezeDeadlock(EDirection pushDirection, int x, int y, BoardCustom b) {
-        frozenDeadlockCallsCount++;
-        long searchStartMillis = System.currentTimeMillis();
+        // frozenDeadlockCallsCount++;
+        // long searchStartMillis = System.currentTimeMillis();
 
         visitedFreezeDeadlocks = new HashMap<>();
         // For both axes check:
@@ -259,14 +259,14 @@ public class DeadSquareDetector {
             frozenNonTargetNeighbour |= !TTile.forBox(tileUp) && TTile.isBox(tileUp) && isFreezeDeadlock(startX, startY, endX, endY, endX, endY-1, b); 
             frozenNonTargetNeighbour |= !TTile.forBox(tileDown) && TTile.isBox(tileDown) && isFreezeDeadlock(startX, startY, endX, endY, endX, endY+1, b); 
 
-            if (frozenNonTargetNeighbour) frozenDeadlockCount++;
-            frozenDeadlockSearchTime += System.currentTimeMillis() - searchStartMillis;
+            // if (frozenNonTargetNeighbour) frozenDeadlockCount++;
+            // frozenDeadlockSearchTime += System.currentTimeMillis() - searchStartMillis;
             return frozenNonTargetNeighbour;
         }
 
         boolean result = isFreezeDeadlock(startX, startY, endX, endY, endX, endY, b);
-        if (result) frozenDeadlockCount++;
-        frozenDeadlockSearchTime += System.currentTimeMillis() - searchStartMillis;
+        // if (result) frozenDeadlockCount++;
+        // frozenDeadlockSearchTime += System.currentTimeMillis() - searchStartMillis;
         return result;
     }
 

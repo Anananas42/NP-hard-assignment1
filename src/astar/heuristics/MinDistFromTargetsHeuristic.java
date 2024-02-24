@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Queue;
 
 import astar.BoardCustom;
+import astar.actions.TTile;
+import astar.util.HungarianAlgorithm;
 import game.board.oop.EPlace;
 
 public class MinDistFromTargetsHeuristic implements Heuristic {
@@ -40,7 +42,9 @@ public class MinDistFromTargetsHeuristic implements Heuristic {
 			for (int x = 0; x < board.width(); ++x) {
                 int min = Integer.MAX_VALUE;
                 for (int i = 0; i < targetX.size(); i++) {
-                    min = Math.min(min, getShortestPathLength(x, y));
+                    List<Integer> distances = getShortestPathLength(x, y, false, targetPositions);
+                    if (distances.isEmpty()) continue; // Walls return empty list
+                    min = Math.min(min, getShortestPathLength(x, y, false, targetPositions).get(0));
                 }
                 minDistanceMap.put(board.getPosition(x, y), min);
             }
@@ -51,8 +55,9 @@ public class MinDistFromTargetsHeuristic implements Heuristic {
     //     return Math.abs(x1 - x2) + Math.abs(y1 - y2);
     // }
 
-    // Use BFS to find shortest possible path - very brute force but boards are small, so not a problem
-    private int getShortestPathLength(int x, int y) {
+    // Use BFS to find shortest possible path
+    private List<Integer> getShortestPathLength(int x, int y, boolean includeAllPaths, List<Integer> remainingTargets) {
+        List<Integer> resultDistances = new ArrayList<>();
         Queue<Integer> q = new ArrayDeque<Integer>();
         HashMap<Integer, Integer> prevPositions = new HashMap<>();
 
@@ -63,14 +68,15 @@ public class MinDistFromTargetsHeuristic implements Heuristic {
         while (!q.isEmpty()) {
             curr = q.poll();
 
-            if (targetPositions.contains(curr)) {
-                int result = 0;
+            if (remainingTargets.contains(curr)) {
+                int pathLength = 0;
                 int prevNode = curr;
                 while (prevNode != initPosition) {
                     prevNode = prevPositions.get(prevNode);
-                    result++;
+                    pathLength++;
                 }
-                return result;
+                resultDistances.add(pathLength);
+                if (!includeAllPaths || (resultDistances.size() == remainingTargets.size())) return resultDistances;
             }
 
             // Get non-wall neighbours
@@ -80,14 +86,48 @@ public class MinDistFromTargetsHeuristic implements Heuristic {
                 prevPositions.put(neighbour, curr);
             }
         }
-        return 0; // Box cannot ever reach a target. The level isn't designed in a way that this box is supposed to move.
+        return resultDistances; // Walls return empty list
+    }
+
+    private int getMinBipartiteDistanceTotal(BoardCustom board) {
+        if (board.boxCount == board.boxInPlaceCount) return 0;
+
+        // Each list inside is a list of distances from a box to all targets
+        List<Integer> remainingTargets = new ArrayList<>();
+        List<Integer> occupiedTargetPositions = new ArrayList<>();
+        for (Integer target : targetPositions) {
+            // Skips targets with a box
+            if (TTile.isBox(board.tile(board.getXFromPosition(target), board.getYFromPosition(target)))) {
+                occupiedTargetPositions.add(target);
+                continue;
+            }
+            remainingTargets.add(target);
+        }
+
+        int[][] distancesFromTargets = new int[remainingTargets.size()][remainingTargets.size()];
+        List<Integer> boxes = board.getBoxes();
+        int i = 0;
+        for (Integer b : boxes) {
+            if (occupiedTargetPositions.contains(b)) continue; // Skip boxes already on targets
+            List<Integer> distances = getShortestPathLength(board.getXFromPosition(b), board.getYFromPosition(b), true, remainingTargets);
+            for (int j = 0; j < distances.size(); j++) {
+                distancesFromTargets[i][j] = distances.get(j);
+            }
+            i++;
+        }
+
+        return new HungarianAlgorithm(distancesFromTargets).findOptimalAssignment();
     }
 
     public double estimate(BoardCustom board) {
+        // Sum of min distances from closest targets
         double result = 0;
         for (Integer box : board.getBoxes()) {
             result += minDistanceMap.get(box);
         }
         return result;
+        
+        // Sum of min distances from closest targets without collisions
+        // return getMinBipartiteDistanceTotal(board);
     }
 }
