@@ -45,6 +45,9 @@ public class MyAgent extends ArtificialAgent {
 			out.println("Frozen deadlocks avoided: " + DeadSquareDetector.frozenDeadlockCount);
 			out.println("Frozen deadlock calls: " + DeadSquareDetector.frozenDeadlockCallsCount);
 			out.printf("Frozen deadlock search time: %.1f ms\n", (double)DeadSquareDetector.frozenDeadlockSearchTime);
+			// out.println("Bipartite deadlocks avoided: " + DeadSquareDetector.bipartiteDeadlockCount);
+			// out.println("Bipartite deadlock calls: " + DeadSquareDetector.bipartiteDeadlockCallsCount);
+			// out.printf("Bipartite deadlock search time: %.1f ms\n", (double)DeadSquareDetector.bipartiteDeadlockSearchTime);
             out.printf("Performance: %.1f nodes/sec\n",
                         ((double)searchedNodes / (double)searchTime * 1000));
         }

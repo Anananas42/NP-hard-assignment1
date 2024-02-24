@@ -25,6 +25,10 @@ public class DeadSquareDetector {
     public static int frozenDeadlockCallsCount;
     public static long frozenDeadlockSearchTime;
 
+    public static int bipartiteDeadlockCount;
+    public static int bipartiteDeadlockCallsCount;
+    public static long bipartiteDeadlockSearchTime;
+
     // 1. Delete all boxes from the board
     // 2. Place a box at the goal square
     // 3. PULL the box from the goal square to every possible square and mark all reached squares as visited 
@@ -56,6 +60,10 @@ public class DeadSquareDetector {
         frozenDeadlockCount = 0;
         frozenDeadlockCallsCount = 0;
         frozenDeadlockSearchTime = 0;
+
+        bipartiteDeadlockCount = 0;
+        bipartiteDeadlockCallsCount = 0;
+        bipartiteDeadlockSearchTime = 0;
 
         // Get targets
         isSimpleDeadlock = new boolean[board.width()][board.height()];
@@ -164,6 +172,9 @@ public class DeadSquareDetector {
 
     // Checks not only that every target has a box that can reach it, but also that there are enough boxes to distribute to the targets
     public static boolean isBipartiteDeadlock(EDirection pushDirection, int x, int y, BoardCustom b) {
+        bipartiteDeadlockCallsCount++;
+        long searchStartMillis = System.currentTimeMillis();
+
         // Check if there exists a target that no box can reach
         // Box position before push
         int startX = x + pushDirection.dX;
@@ -194,6 +205,8 @@ public class DeadSquareDetector {
                 }
             }
             reachableBoxesByTarget.add(reachableBoxes);
+            if (isUnreachable) bipartiteDeadlockCount++;
+            bipartiteDeadlockSearchTime += System.currentTimeMillis() - searchStartMillis;
             if (isUnreachable) return true;
         }
 
@@ -205,11 +218,12 @@ public class DeadSquareDetector {
         BipartiteMatcher bpmatcher = new BipartiteMatcher(targetX.size(), b.getBoxes(), reachableBoxesByTarget);
         int matchingSize = bpmatcher.hopcroftKarp();
 
-        if (matchingSize != targetX.size()) {
-            System.out.println(x + ", " + y + ", " + pushDirection.toString());
-            b.debugPrint();
-        }
-
+        // if (matchingSize != targetX.size()) {
+        //     System.out.println(x + ", " + y + ", " + pushDirection.toString());
+        //     b.debugPrint();
+        // }
+        if (matchingSize != targetX.size()) bipartiteDeadlockCount++;
+        bipartiteDeadlockSearchTime += System.currentTimeMillis() - searchStartMillis;
         return matchingSize != targetX.size();
     }
 

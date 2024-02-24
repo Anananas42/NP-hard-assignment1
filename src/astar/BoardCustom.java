@@ -73,8 +73,8 @@ public class BoardCustom extends BoardSlim {
             EDirection dir = push.getDirection();
             if (!isPossible                                                             // Illegal move
                  || isSimpleDeadlock[x+dir.dX+dir.dX][y+dir.dY+dir.dY]                  // New box position can't reach any target
-                //  || DeadSquareDetector.isBipartiteDeadlockSimple(dir, x, y, this)       // A target won't have any box that could reach it
-                 || DeadSquareDetector.isBipartiteDeadlock(dir, x, y, this)             // Every target can be matched and there are enough boxes to distribute
+                //  || DeadSquareDetector.isBipartiteDeadlockSimple(dir, x, y, this)       // A target won't have any box that could reach it DISABLED (dont occur in aymeric level set)
+                //  || DeadSquareDetector.isBipartiteDeadlock(dir, x, y, this)             // Every target can be matched and there are enough boxes to distribute DISABLED (dont occur in aymeric level set)
                  || DeadSquareDetector.isFreezeDeadlock(dir, x, y, this)) continue;     // Freeze deadlocks
             result.add(push);
         }
