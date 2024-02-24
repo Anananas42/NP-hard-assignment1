@@ -8,14 +8,22 @@ import java.util.List;
 import java.util.Queue;
 
 import astar.actions.TTile;
+import astar.util.BipartiteMatcher;
 import game.actions.EDirection;
 import game.board.compact.BoardCompact;
 import game.board.compact.CTile;
 
 public class DeadSquareDetector {
     public static boolean[][] isSimpleDeadlock;
+    // Mask for each target to compute bipartite deadlocks
+    private static boolean[][][] isSimpleDeadlockByTarget;
+    private static List<Integer> targetX;
+    private static List<Integer> targetY;
+
     private static HashMap<Integer, Boolean> visitedFreezeDeadlocks;
     public static int frozenDeadlockCount;
+    public static int frozenDeadlockCallsCount;
+    public static long frozenDeadlockSearchTime;
 
     // 1. Delete all boxes from the board
     // 2. Place a box at the goal square
@@ -46,11 +54,13 @@ public class DeadSquareDetector {
     private static void precomputeSimpleDeadlocks(BoardCompact board) {
         // For analysis
         frozenDeadlockCount = 0;
+        frozenDeadlockCallsCount = 0;
+        frozenDeadlockSearchTime = 0;
 
         // Get targets
         isSimpleDeadlock = new boolean[board.width()][board.height()];
-        List<Integer> targetX = new ArrayList<>();
-        List<Integer> targetY = new ArrayList<>();
+        targetX = new ArrayList<>();
+        targetY = new ArrayList<>();
         boolean[][] isWall = new boolean[board.width()][board.height()];
 
         for (int x = 0; x < board.width(); ++x) {
@@ -67,6 +77,15 @@ public class DeadSquareDetector {
 			}			
 		}
 
+        isSimpleDeadlockByTarget = new boolean[board.width()][board.height()][targetX.size()];
+        for (int x = 0; x < board.width(); ++x) {
+			for (int y = 0; y < board.height(); ++y) {
+                for (int i = 0; i < targetX.size(); i++) {
+                    isSimpleDeadlockByTarget[x][y][i] = true;
+                }
+            }
+        }
+
         // For each target, mark reachable tiles as not deadlocks
         for (int i = 0; i < targetX.size(); i++) {
             Queue<Integer> remainingX = new ArrayDeque<>();
@@ -82,6 +101,7 @@ public class DeadSquareDetector {
                 x = remainingX.poll();
                 y = remainingY.poll();
                 isSimpleDeadlock[x][y] = false;
+                isSimpleDeadlockByTarget[x][y][i] = false;
 
                 // Process possible pulls
                 for (EDirection dir : EDirection.arrows()) {
@@ -102,7 +122,101 @@ public class DeadSquareDetector {
         return !isWall[x+dir.dX][y+dir.dY] && !isWall[x+dir.dX+dir.dX][y+dir.dY+dir.dY];
     }
 
+    // Checks only whether a target becomes unreachable for all boxes
+    public static boolean isBipartiteDeadlockSimple(EDirection pushDirection, int x, int y, BoardCustom b) {
+        // Check if there exists a target that no box can reach
+        // Box position before push
+        int startX = x + pushDirection.dX;
+        int startY = y + pushDirection.dY;
+
+        // After push, the target position is where the box will be
+        int endX = x + pushDirection.dX + pushDirection.dX;
+        int endY = y + pushDirection.dY + pushDirection.dY;
+
+        // First get all targets that can be reached by the current box before push, but won't be reachable after push
+        List<Integer> reachableTargetIndices = new ArrayList<>();
+        for (int t = 0; t < targetX.size(); t++) {
+            if (isSimpleDeadlockByTarget[startX][startY][t]) continue;
+            reachableTargetIndices.add(t);
+        }
+
+        // For these targets, check if there's still some other box that can reach them
+        for (Integer reachableTarget : reachableTargetIndices) {
+            // Check new place of the moved box
+            if (!isSimpleDeadlockByTarget[endX][endY][reachableTarget]) continue;
+            boolean isUnreachable = true;
+            for (Integer boxPosition : b.getBoxes()) {
+                int bx = b.getXFromPosition(boxPosition);
+                int by = b.getYFromPosition(boxPosition);
+                // The moved box won't be at its current place anymore
+                if (bx == startX && by == startY) continue;
+                // At least one box can reach this target
+                if (!isSimpleDeadlockByTarget[bx][by][reachableTarget]) {
+                    isUnreachable = false;
+                    break;
+                }
+            }
+            if (isUnreachable) return true;
+        }
+
+        return false;
+    }
+
+    // Checks not only that every target has a box that can reach it, but also that there are enough boxes to distribute to the targets
+    public static boolean isBipartiteDeadlock(EDirection pushDirection, int x, int y, BoardCustom b) {
+        // Check if there exists a target that no box can reach
+        // Box position before push
+        int startX = x + pushDirection.dX;
+        int startY = y + pushDirection.dY;
+
+        // After push, the target position is where the box will be
+        int endX = x + pushDirection.dX + pushDirection.dX;
+        int endY = y + pushDirection.dY + pushDirection.dY;
+
+        // For these targets, check if there's still some other box that can reach them
+        List<List<Integer>> reachableBoxesByTarget = new ArrayList<>();
+        for (int target = 0; target < targetX.size(); target++) {
+            List<Integer> reachableBoxes = new ArrayList<>();
+            // Check new place of the moved box
+            if (!isSimpleDeadlockByTarget[endX][endY][target]) {
+                reachableBoxes.add(b.getPosition(endX, endY));
+            }
+            boolean isUnreachable = true;
+            for (Integer boxPosition : b.getBoxes()) {
+                int bx = b.getXFromPosition(boxPosition);
+                int by = b.getYFromPosition(boxPosition);
+                // The moved box won't be at its current place anymore
+                if (bx == startX && by == startY) continue;
+                // At least one box can reach this target
+                if (!isSimpleDeadlockByTarget[bx][by][target]) {
+                    isUnreachable = false;
+                    reachableBoxes.add(boxPosition);
+                }
+            }
+            reachableBoxesByTarget.add(reachableBoxes);
+            if (isUnreachable) return true;
+        }
+
+        // ??? Use Ford-Fulkerson max flow algorithm to decide whether there is a matching
+        // Targets are connected to source
+        // Edges indicate that a target can be reached by a box
+        // Boxes are connected to sink
+        // Flow at the sink must be same as number of targets
+        BipartiteMatcher bpmatcher = new BipartiteMatcher(targetX.size(), b.getBoxes(), reachableBoxesByTarget);
+        int matchingSize = bpmatcher.hopcroftKarp();
+
+        if (matchingSize != targetX.size()) {
+            System.out.println(x + ", " + y + ", " + pushDirection.toString());
+            b.debugPrint();
+        }
+
+        return matchingSize != targetX.size();
+    }
+
     public static boolean isFreezeDeadlock(EDirection pushDirection, int x, int y, BoardCustom b) {
+        frozenDeadlockCallsCount++;
+        long searchStartMillis = System.currentTimeMillis();
+
         visitedFreezeDeadlocks = new HashMap<>();
         // For both axes check:
         // 1. If there is a wall on the left or on the right side of the box then the box is blocked along this axis
@@ -110,38 +224,40 @@ public class DeadSquareDetector {
         // 3. If there is a box one the left or right side then this box is blocked if the other box is blocked. 
 
         // Box position before push
-        int sourceX = x + pushDirection.dX;
-        int sourceY = y + pushDirection.dY;
+        int startX = x + pushDirection.dX;
+        int startY = y + pushDirection.dY;
 
         // After push, the target position is where the box will be
-        int targetX = x + pushDirection.dX + pushDirection.dX;
-        int targetY = y + pushDirection.dY + pushDirection.dY;
+        int endX = x + pushDirection.dX + pushDirection.dX;
+        int endY = y + pushDirection.dY + pushDirection.dY;
 
         // If the position would be pushed to on a target tile, return true only if some neighbours not on target tiles become frozen
-        byte tile = b.tile(targetX, targetY);
+        byte tile = b.tile(endX, endY);
         if (TTile.forBox(tile)) {
             boolean frozenNonTargetNeighbour = false;
-            byte tileRight = b.tile(targetX+1, targetY);
-            byte tileLeft = b.tile(targetX-1, targetY);
-            byte tileUp = b.tile(targetX, targetY-1);
-            byte tileDown = b.tile(targetX, targetY+1);
+            byte tileRight = b.tile(endX+1, endY);
+            byte tileLeft = b.tile(endX-1, endY);
+            byte tileUp = b.tile(endX, endY-1);
+            byte tileDown = b.tile(endX, endY+1);
 
-            frozenNonTargetNeighbour |= !TTile.forBox(tileRight) && TTile.isBox(tileRight) && isFreezeDeadlock(sourceX, sourceY, targetX, targetY, targetX+1, targetY, b); 
-            frozenNonTargetNeighbour |= !TTile.forBox(tileLeft) && TTile.isBox(tileLeft) && isFreezeDeadlock(sourceX, sourceY, targetX, targetY, targetX-1, targetY, b); 
-            frozenNonTargetNeighbour |= !TTile.forBox(tileUp) && TTile.isBox(tileUp) && isFreezeDeadlock(sourceX, sourceY, targetX, targetY, targetX, targetY-1, b); 
-            frozenNonTargetNeighbour |= !TTile.forBox(tileDown) && TTile.isBox(tileDown) && isFreezeDeadlock(sourceX, sourceY, targetX, targetY, targetX, targetY+1, b); 
+            frozenNonTargetNeighbour |= !TTile.forBox(tileRight) && TTile.isBox(tileRight) && isFreezeDeadlock(startX, startY, endX, endY, endX+1, endY, b); 
+            frozenNonTargetNeighbour |= !TTile.forBox(tileLeft) && TTile.isBox(tileLeft) && isFreezeDeadlock(startX, startY, endX, endY, endX-1, endY, b); 
+            frozenNonTargetNeighbour |= !TTile.forBox(tileUp) && TTile.isBox(tileUp) && isFreezeDeadlock(startX, startY, endX, endY, endX, endY-1, b); 
+            frozenNonTargetNeighbour |= !TTile.forBox(tileDown) && TTile.isBox(tileDown) && isFreezeDeadlock(startX, startY, endX, endY, endX, endY+1, b); 
 
             if (frozenNonTargetNeighbour) frozenDeadlockCount++;
+            frozenDeadlockSearchTime += System.currentTimeMillis() - searchStartMillis;
             return frozenNonTargetNeighbour;
         }
 
-        boolean result = isFreezeDeadlock(sourceX, sourceY, targetX, targetY, targetX, targetY, b);
+        boolean result = isFreezeDeadlock(startX, startY, endX, endY, endX, endY, b);
         if (result) frozenDeadlockCount++;
+        frozenDeadlockSearchTime += System.currentTimeMillis() - searchStartMillis;
         return result;
     }
 
     // Look if box at x and y is freeze deadlocked while taking into account that box from source is supposed to be moved to target
-    private static boolean isFreezeDeadlock(int sourceX, int sourceY, int targetX, int targetY, int x, int y, BoardCustom b) {
+    private static boolean isFreezeDeadlock(int startX, int startY, int endX, int endY, int x, int y, BoardCustom b) {
         if (x <= 0 || x >= b.width() || y <= 0 || y >= b.height()) return true;
 
         int position = b.getPosition(x, y);
@@ -158,8 +274,8 @@ public class DeadSquareDetector {
                                               || (leftOutOfBound || isSimpleDeadlock[x-1][y]) && (rightOutOfBound || isSimpleDeadlock[x+1][y]);
 
         boolean horizontalBoxBlock = horizontalSimpleDeadlockBlock 
-                                   || (leftOutOfBound || (!(x-1 == sourceX && y == sourceY) && TTile.isBox(b.tile(x-1, y)) && isFreezeDeadlock(sourceX, sourceY, targetX, targetY, x-1, y, b)))
-                                   || (rightOutOfBound || (!(x+1 == sourceX && y == sourceY) && TTile.isBox(b.tile(x+1, y)) && isFreezeDeadlock(sourceX, sourceY, targetX, targetY, x+1, y, b)));
+                                   || (leftOutOfBound || (!(x-1 == startX && y == startY) && TTile.isBox(b.tile(x-1, y)) && isFreezeDeadlock(startX, startY, endX, endY, x-1, y, b)))
+                                   || (rightOutOfBound || (!(x+1 == startX && y == startY) && TTile.isBox(b.tile(x+1, y)) && isFreezeDeadlock(startX, startY, endX, endY, x+1, y, b)));
 
         if (!horizontalBoxBlock) return false;
 
@@ -173,8 +289,8 @@ public class DeadSquareDetector {
         boolean verticalSimpleDeadlockBlock = (upOutOfBound || isSimpleDeadlock[x][y-1]) && (downOutOfBound || isSimpleDeadlock[x][y+1]);
         if (verticalSimpleDeadlockBlock) return true;
 
-        boolean verticalBoxBlock = (upOutOfBound || (!(x == sourceX && y-1 == sourceY) && TTile.isBox(b.tile(x, y-1)) && isFreezeDeadlock(sourceX, sourceY, targetX, targetY, x, y-1, b)))
-                                || (downOutOfBound || (!(x == sourceX && y+1 == sourceY) && TTile.isBox(b.tile(x, y+1)) && isFreezeDeadlock(sourceX, sourceY, targetX, targetY, x, y+1, b)));
+        boolean verticalBoxBlock = (upOutOfBound || (!(x == startX && y-1 == startY) && TTile.isBox(b.tile(x, y-1)) && isFreezeDeadlock(startX, startY, endX, endY, x, y-1, b)))
+                                || (downOutOfBound || (!(x == startX && y+1 == startY) && TTile.isBox(b.tile(x, y+1)) && isFreezeDeadlock(startX, startY, endX, endY, x, y+1, b)));
         if (verticalBoxBlock) return true;
 
         return false;

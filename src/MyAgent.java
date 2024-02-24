@@ -43,6 +43,8 @@ public class MyAgent extends ArtificialAgent {
         if (verbose) {
             out.println("Nodes visited: " + searchedNodes);
 			out.println("Frozen deadlocks avoided: " + DeadSquareDetector.frozenDeadlockCount);
+			out.println("Frozen deadlock calls: " + DeadSquareDetector.frozenDeadlockCallsCount);
+			out.printf("Frozen deadlock search time: %.1f ms\n", (double)DeadSquareDetector.frozenDeadlockSearchTime);
             out.printf("Performance: %.1f nodes/sec\n",
                         ((double)searchedNodes / (double)searchTime * 1000));
         }

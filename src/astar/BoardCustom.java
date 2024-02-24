@@ -71,10 +71,14 @@ public class BoardCustom extends BoardSlim {
         for (TPush push : TPush.getActions()) { 
             boolean isPossible = TPush.isPushPossible(this, x, y, push.getDirection());
             EDirection dir = push.getDirection();
-            if (!isPossible || isSimpleDeadlock[x+dir.dX+dir.dX][y+dir.dY+dir.dY] || DeadSquareDetector.isFreezeDeadlock(dir, x, y, this)) continue;
+            if (!isPossible                                                             // Illegal move
+                 || isSimpleDeadlock[x+dir.dX+dir.dX][y+dir.dY+dir.dY]                  // New box position can't reach any target
+                 || DeadSquareDetector.isBipartiteDeadlockSimple(dir, x, y, this)       // A target won't have any box that could reach it
+                 || DeadSquareDetector.isBipartiteDeadlock(dir, x, y, this)             // Every target can be matched and there are enough boxes to distribute
+                 || DeadSquareDetector.isFreezeDeadlock(dir, x, y, this)) continue;     // Freeze deadlocks
             result.add(push);
         }
-
+        
         return result;
     }
 
