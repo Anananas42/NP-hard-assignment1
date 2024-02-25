@@ -1,7 +1,7 @@
 package astar.tests;
 import java.io.File;
 
-import astar.DeadSquareDetector;
+import astar.detectors.DeadSquareDetector;
 import game.board.compact.*;
 import game.board.oop.*;
 
