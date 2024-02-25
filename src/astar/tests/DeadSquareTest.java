@@ -1,7 +1,7 @@
 package astar.tests;
 import java.io.File;
 
-import astar.detectors.DeadSquareDetector;
+import astar.DeadSquareDetector;
 import game.board.compact.*;
 import game.board.oop.*;
 
@@ -33,7 +33,7 @@ public class DeadSquareTest {
         }
 
         System.out.printf("testing levels in %s\n\n", levels.getName());
-        for (int i = 0 ; i <= 10 ; ++i) {
+        for (int i = 1 ; i <= 10 ; ++i) {
             System.out.printf("== level %d ==\n\n", i);
             Board board = Board.fromFileSok(levels, i);
 

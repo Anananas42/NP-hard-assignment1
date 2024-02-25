@@ -3,7 +3,6 @@ package astar;
 import java.util.*;
 
 import astar.actions.TAction;
-import astar.detectors.DeadSquareDetector;
 import astar.heuristics.MinDistFromTargetsHeuristic;
 import astar.search.HeuristicProblem;
 import game.board.compact.BoardCompact;

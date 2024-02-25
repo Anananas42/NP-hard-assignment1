@@ -35,8 +35,8 @@ public class DeadSquareDetector {
     // 3. PULL the box from the goal square to every possible square and mark all reached squares as visited 
     
     public static boolean[][] detect(BoardCompact board) {
-//        if (isSimpleDeadlock == null) {
-          precomputeSimpleDeadlocks(board);
+        if (isSimpleDeadlock == null) {
+            precomputeSimpleDeadlocks(board);
 
             // DEBUG
             // for (int x = 0; x < board.width(); x++) {
@@ -51,7 +51,7 @@ public class DeadSquareDetector {
             //         }
             //     }
             // }
-//        }
+        }        
 
         return isSimpleDeadlock;
     }
@@ -114,17 +114,15 @@ public class DeadSquareDetector {
 
                 // Process possible pulls
                 for (EDirection dir : EDirection.arrows()) {
-                    if (!isPullPossible(x, y, dir, isWall)  || visited.contains((x+dir.dX) + (y+dir.dY) * board.width())
-                    ) continue;
+                    if (!isPullPossible(x, y, dir, isWall) || visited.contains((x+dir.dX) + (y+dir.dY) * board.width())) continue;
 
                     int neighbourX = x + dir.dX;
                     int neighbourY = y + dir.dY;
 
                     remainingX.add(neighbourX);
                     remainingY.add(neighbourY);
+                    visited.add(neighbourX + neighbourY * board.width());
                 }
-
-                visited.add(x + y * board.width());
             }
         }
     }
