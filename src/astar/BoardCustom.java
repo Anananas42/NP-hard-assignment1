@@ -421,8 +421,8 @@ public class BoardCustom {
 		if (obj == null) return false;
 		if (this == obj) return true;
 		if (obj.hashCode() != hashCode()) return false;		
-		if (!(obj instanceof StateMinimal)) return false;
-		StateMinimal other = (StateMinimal) obj;		
+		if (!(obj instanceof BoardCustom)) return false;
+		BoardCustom other = (BoardCustom) obj;
 		if (positions.length != other.positions.length) return false;
 		for (int index = 0; index < positions.length; ++index) {
 			if (positions[index] != other.positions[index]) return false;
