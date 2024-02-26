@@ -10,48 +10,98 @@ import astar.actions.TWalk;
 import astar.actions.TWalkPushSequence;
 import astar.detectors.DeadSquareDetector;
 import game.actions.EDirection;
+import game.board.compact.BoardCompact;
+import game.board.compact.CTile;
+import game.board.minimal.StateMinimal;
 import game.board.oop.EEntity;
 import game.board.oop.EPlace;
 import game.board.oop.ESpace;
-import game.board.slim.BoardSlim;
 
 
 
-public class BoardCustom extends BoardSlim {
-    // List with box positions calculated as x * width + y (List is efficient since number of boxes is small)
-    List<Integer> boxes;
+public class BoardCustom {
 
-    // List of possible sequences of positions to get from current player's position next to accessible boxes
-    List<List<Integer>> possibleWalks;
+    // Level data that doesn't change
+    public static int width;
+    public static int height;
+    public static int boxCount;
+    public static byte[][] tiles; // Static tiles (excluding box and player positions)
+    public static List<Integer> targets;
 
-    public BoardCustom(byte width, byte height) {
-        super(width, height);
-        this.boxes = new ArrayList<>();
+    public static final int Y_MASK = (Integer.MAX_VALUE >> 16);
+	
+    // Changing data representing a state
+	/**
+	 * PLAYER
+	 * [0] = player-x, player-y
+	 * 
+	 * BOXES (for n>0)
+	 * [n] = nth-box-x (the first 16bits), nth-box-y (the second 16bits)
+	 */
+	public int[] positions;
+    public int boxInPlaceCount;
+	
+	private Integer hash = null;
+
+    public BoardCustom(BoardCompact boardCompact) {
+        int elements = 1 + boardCompact.boxCount;
+        boxInPlaceCount = boardCompact.boxInPlaceCount;
+		positions = new int[elements];
+		positions[0] = getPacked(boardCompact.playerX, boardCompact.playerY);
+		int index = 1;
+        BoardCustom.targets = new ArrayList<>();
+		for (int x = 0; x < boardCompact.width(); ++x) {
+			for (int y = 0; y < boardCompact.height(); ++y) {
+				if (CTile.isSomeBox(boardCompact.tile(x, y))) {
+					positions[index] = getPacked(x, y);
+					++index;
+				}
+                if (CTile.forSomeBox(boardCompact.tile(x, y))) {
+                    BoardCustom.targets.add(getPacked(x, y));
+                }
+			}
+		}
+
+        BoardCustom.width = boardCompact.width();
+        BoardCustom.height = boardCompact.height();
+		BoardCustom.boxCount = boardCompact.boxCount;
+		
+        BoardCustom.tiles = new byte[width][height];
+		for (int x = 0; x < width; ++x) {
+			for (int y = 0; y < height; ++y) {
+				BoardCustom.tiles[x][y] = computeCustomStaticTile(boardCompact, x, y);
+			}
+		}
     }
 
-    // Initialize information about the state that will change as agent performs actions
-    // but would be costly to recompute from scratch every time
-    // THIS METHOD IS CALLED ONLY ONCE WHEN CREATING THE BOARD 
-    // (then this precomputed result is copied every time and only slightly changed with actions)
-    public void populateDynamicStateDescriptors() {
-        for (int y = 0; y < height(); ++y) {
-			for (int x = 0; x < width(); ++x) {
-                EEntity entity = EEntity.fromSlimFlag(tiles[x][y]);
+    private BoardCustom(int[] positions, Integer hash, int boxInPlaceCount) {
+        this.positions = positions.clone();
+        this.hash = hash;
+        this.boxInPlaceCount = boxInPlaceCount;
+    }
 
-                if (entity == null || !entity.isSomeBox()) continue;
-                boxes.add(getPosition(x, y));
-            }
-        }
+    public int getPlayerX() {
+        return BoardCustom.getX(this.positions[0]);
+    }
+
+    public int getPlayerY() {
+        return BoardCustom.getY(this.positions[0]);
     }
 
     public List<TAction> getActions(boolean[][] isSimpleDeadlock) {
         List<TAction> result = new ArrayList<>();
 
         // Add all pushes from the player's current position
-        result.addAll(getPushesWithoutDeadlock(playerX, playerY, isSimpleDeadlock));
+        result.addAll(getPushesWithoutDeadlock(getPlayerX(), getPlayerY(), isSimpleDeadlock));
         // Add all WalkPush actions
         result.addAll(getWalkPushActions(isSimpleDeadlock));
-        
+
+        // System.out.println("POSSIBLE ACTIONS");
+        // for (TAction a : result) {
+        //     System.out.println(a.toString());
+        // }
+        // debugPrint();
+
         return result;
     }
 
@@ -70,13 +120,14 @@ public class BoardCustom extends BoardSlim {
     private List<TPush> getPushesWithoutDeadlock(int x, int y, boolean[][] isSimpleDeadlock) {
         List<TPush> result = new ArrayList<>();
         for (TPush push : TPush.getActions()) { 
-            boolean isPossible = TPush.isPushPossible(this, x, y, push.getDirection());
             EDirection dir = push.getDirection();
+            boolean isPossible = TPush.isPushPossible(this, x, y, dir);
             if (!isPossible                                                             // Illegal move
                  || isSimpleDeadlock[x+dir.dX+dir.dX][y+dir.dY+dir.dY]                  // New box position can't reach any target
                 //  || DeadSquareDetector.isBipartiteDeadlockSimple(dir, x, y, this)       // A target won't have any box that could reach it DISABLED (dont occur in aymeric level set)
                 //  || DeadSquareDetector.isBipartiteDeadlock(dir, x, y, this)             // Every target can be matched and there are enough boxes to distribute DISABLED (dont occur in aymeric level set)
-                 || DeadSquareDetector.isFreezeDeadlock(dir, x, y, this)) continue;     // Freeze deadlocks
+                 || DeadSquareDetector.isFreezeDeadlock(dir, x, y, this)
+               ) continue;     // Freeze deadlocks
             result.add(push);
         }
         
@@ -92,8 +143,8 @@ public class BoardCustom extends BoardSlim {
             int[] positionsY = new int[length];
             for (int i = 0; i < positionSequence.size(); i++) {
                 int position = positionSequence.get(i);
-                positionsX[i] = getXFromPosition(position);
-                positionsY[i] = getYFromPosition(position);
+                positionsX[i] = BoardCustom.getX(position);
+                positionsY[i] = BoardCustom.getY(position);
             }
             // Add a TWalk only if the final position enables pushing a box at least in one of the four directions
             boolean isPushPossible = false;
@@ -102,7 +153,7 @@ public class BoardCustom extends BoardSlim {
                 if (isPushPossible) break;
             }
             if (!isPushPossible) continue;
-            result.add(TWalk.fromPositions(this, playerX, playerY, positionsX, positionsY));
+            result.add(TWalk.fromPositions(this, getPlayerX(), getPlayerY(), positionsX, positionsY));
         }
 
         return result;
@@ -112,7 +163,7 @@ public class BoardCustom extends BoardSlim {
     // This method returns all positions next to boxes that the agent can access
     public List<List<Integer>> getPossibleWalks() {
         // Recompute accessible positions
-        possibleWalks = new ArrayList<>();
+        List<List<Integer>> possibleWalks = new ArrayList<>();
         Set<Integer> destinations = getBoxNeighbourPositions();
 
         // BFS
@@ -120,7 +171,7 @@ public class BoardCustom extends BoardSlim {
         Queue<Integer> q = new ArrayDeque<Integer>(); // For uniform cost, we can just use queue. (BFS basically)
         HashMap<Integer, Integer> prevMap = new HashMap<>();
 
-        int initPosition = getPosition(playerX, playerY);
+        int initPosition = positions[0]; // Player
         // costMap.put(initPosition, 0);
         q.add(initPosition);
 
@@ -155,24 +206,36 @@ public class BoardCustom extends BoardSlim {
     public Set<Integer> getBoxNeighbourPositions() {
         Set<Integer> result = new HashSet<>();
 
-        for (Integer boxPosition : boxes) {
+        for (Integer boxPosition : getBoxes()) {
             result.addAll(getWalkableNeighbours(boxPosition));
         }
 
         return result;
     }
 
-    @Override
-    public void moveBox(byte sourceTileX, byte sourceTileY, byte targetTileX, byte targetTileY) {
-        super.moveBox(sourceTileX, sourceTileY, targetTileX, targetTileY);
-
-        // Update position of the moved box
-        boxes.remove((Integer)getPosition(sourceTileX, sourceTileY));
-        boxes.add(getPosition(targetTileX, targetTileY));
+    public boolean isBox(int x, int y) {
+        int position = getPacked(x, y);
+        return isBox(position);
     }
 
-    public void moveBox(int sourceTileX, int sourceTileY, int targetTileX, int targetTileY) {
-        moveBox((byte)sourceTileX, (byte)sourceTileY, (byte)targetTileX, (byte)targetTileY);
+    public boolean isBox(int position) {
+        for (int i = 1; i < positions.length; i++) {
+            if (position == positions[i]) return true;
+        }
+        return false;
+    }
+
+    public static boolean isTarget(int x, int y) {
+        int position = getPacked(x, y);
+        return isTarget(position);
+    }
+
+    public static boolean isTarget(int position) {
+        return BoardCustom.targets.contains(position);
+    }
+
+    public boolean isPlayer(int x, int y) {
+        return (x == getPlayerX()) && (y == getPlayerY());
     }
 
     /**
@@ -182,21 +245,44 @@ public class BoardCustom extends BoardSlim {
 	 * @param targetTileX
 	 * @param targetTileY
 	 */
-	public void movePlayer(byte sourceTileX, byte sourceTileY, byte targetTileX, byte targetTileY) {
-		super.movePlayer(sourceTileX, sourceTileY, targetTileX, targetTileY);
-        this.nullHash();
+	public void movePlayer(int sourceTileX, int sourceTileY, int targetTileX, int targetTileY) {
+		positions[0] = getPacked(targetTileX, targetTileY);
+        this.hash = null;
+        hashCode();
 	}
 
-    public void movePlayer(int sourceTileX, int sourceTileY, int targetTileX, int targetTileY) {
-        movePlayer((byte)sourceTileX, (byte)sourceTileY, (byte)targetTileX, (byte)targetTileY);
+    public void moveBox(int sourceTileX, int sourceTileY, int targetTileX, int targetTileY) {
+        int sourcePosition = getPacked(sourceTileX, sourceTileY);
+        int targetPosition = getPacked(targetTileX, targetTileY);
+		
+		if (BoardCustom.isTarget(targetTileX, targetTileY)) {
+			++boxInPlaceCount;
+		}
+
+        int index = -1;
+        for (int i = 1; i < positions.length; i++) {
+            if (positions[i] != sourcePosition) continue;
+            index = i;
+            break;
+        }
+
+        // Overwrite box position
+        positions[index] = targetPosition;
+		
+		if (BoardCustom.isTarget(sourceTileX, sourceTileY)) {
+			--boxInPlaceCount;
+		}
+
+        this.hash = null;
+        hashCode();
     }
 
     private List<Integer> getWalkableNeighbours(int position) {
         List<Integer> neighbours = new ArrayList<>();
-        int x = getXFromPosition(position);
-        int y = getYFromPosition(position);
+        int x = getX(position);
+        int y = getY(position);
         for (TMove m : TMove.getActions()) { // Get moves in all directions
-            int neighbourPosition = m.isPossible(this, (byte)x, (byte)y); // Check if move in a direction possible
+            int neighbourPosition = m.isPossible(this, x, y); // Check if move in a direction possible
             if (neighbourPosition == -1) continue; // Not possible, ignore this direction
             neighbours.add(neighbourPosition); // Possible, add neighbour position
         }
@@ -206,12 +292,12 @@ public class BoardCustom extends BoardSlim {
 
     public List<Integer> getNonWallNeighbours(int position) {
         List<Integer> neighbours = new ArrayList<>();
-        int x = getXFromPosition(position);
-        int y = getYFromPosition(position);
+        int x = getX(position);
+        int y = getY(position);
         for (TMove m : TMove.getActions()) { // Get moves in all directions
             EDirection dir = m.getDirection();
-            if (TMove.isOnBoard(this, (byte)x, (byte)y, m.getDirection()) && !TTile.isWall(tile(x+dir.dX, y+dir.dY))) {
-                neighbours.add(getPosition(x+dir.dX, y+dir.dY));
+            if (TMove.isOnBoard(this, x, y, m.getDirection()) && !TTile.isWall(tile(x+dir.dX, y+dir.dY))) {
+                neighbours.add(getPacked(x+dir.dX, y+dir.dY));
             }
         }
 
@@ -221,48 +307,29 @@ public class BoardCustom extends BoardSlim {
 
     @Override
 	public BoardCustom clone() {
-        BoardCustom result = new BoardCustom(width(), height());
-		result.tiles = new byte[width()][height()];
-		for (int x = 0; x < width(); ++x) {
-			for (int y = 0; y < height(); ++y) {
-				result.tiles[x][y] = tiles[x][y];
-			}			
-		}
-		result.playerX = playerX;
-		result.playerY = playerY;
-		result.boxCount = boxCount;
-		result.boxInPlaceCount = boxInPlaceCount;
-
-        if (this.boxes != null) {
-            result.boxes = new ArrayList<>(this.boxes);
-        }
-
+        BoardCustom result = new BoardCustom(this.positions, this.hashCode(), this.boxInPlaceCount);
         return result;
     }
 
-    public int getPosition(int x, int y) {
-        return x + y * width();
-    }
-
-    public int getXFromPosition(int position) {
-        return position % width();
-    }
-
-    public int getYFromPosition(int position) {
-        return position / width();
-    }
-
     public List<Integer> getBoxes() {
-        return boxes;
+        List<Integer> result = new ArrayList<>();
+        for (int i = 1; i < positions.length; i++) {
+            result.add(positions[i]);
+        }
+        return result;
     }
 
-    @Override
+    public boolean isVictory() {
+		return BoardCustom.boxCount == this.boxInPlaceCount;
+	}
+
     public void debugPrint() {
-		for (int y = 0; y < height(); ++y) {
-			for (int x = 0; x < width(); ++x) {
-				EEntity entity = EEntity.fromSlimFlag(tiles[x][y]);
-				EPlace place = EPlace.fromSlimFlag(tiles[x][y]);
-				ESpace space = ESpace.fromSlimFlag(tiles[x][y]);
+		for (int y = 0; y < height; ++y) {
+			for (int x = 0; x < width; ++x) {
+                byte tile = tile(x, y);
+				EEntity entity = EEntity.fromSlimFlag(tile);
+				EPlace place = EPlace.fromSlimFlag(tile);
+				ESpace space = ESpace.fromSlimFlag(tile);
 				
 				if (entity != null && entity != EEntity.NONE) {
 					System.out.print(entity.getSymbol());
@@ -280,4 +347,91 @@ public class BoardCustom extends BoardSlim {
 		}
 	}
 
+    private byte computeCustomStaticTile(BoardCompact board, int x, int y) {
+        int compact = board.tile(x, y);
+		
+		byte staticTile = 0;
+		
+		if (CTile.forSomeBox(compact)) staticTile |= TTile.PLACE_FLAG;		
+		if (CTile.isFree(compact)) return staticTile;
+		if (CTile.isWall(compact)) {
+			staticTile |= TTile.WALL_FLAG;
+			return staticTile;
+		}
+		
+		return staticTile;
+    }
+
+    public byte tile(int x, int y) {
+        byte tile = BoardCustom.tiles[x][y];
+		
+        if (isBox(x, y)) {
+			tile |= TTile.BOX_FLAG;
+		}
+        else if (isPlayer(x, y)) {
+			tile |= TTile.PLAYER_FLAG;
+		}
+		
+		return tile;
+    }
+
+
+    // ------------------------------------ STATE MINIMAL ------------------------------------
+	
+	/**
+	 * Packs [x;y] into single integer.
+	 * @param x
+	 * @param y
+	 * @return
+	 */
+	public static int getPacked(int x, int y) {
+		return x << 16 | y;
+	}
+	
+	/**
+	 * Returns X coordinate from packed value.
+	 * @param packed
+	 * @return
+	 */
+	public static int getX(int packed) {
+		return packed >> 16;
+	}
+	
+	/**
+	 * Returns Y coordinate from packed value.
+	 * @param packed
+	 * @return
+	 */
+	public static int getY(int packed) {
+		return packed & Y_MASK;
+	}
+	
+	public int hashCode() {
+		if (hash == null) {
+			hash = (getX(positions[0]) + 5) * 290317 * getX(positions[1]) + (getY(positions[0]) + 7) * 290317 * getY(positions[1]);			
+			for (int i = 1; i < positions.length; ++i) {
+				hash += getX(positions[i]) * 290317 + getY(positions[i]) * 97;
+			}
+		}
+		return hash;
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		if (obj == null) return false;
+		if (this == obj) return true;
+		if (obj.hashCode() != hashCode()) return false;		
+		if (!(obj instanceof StateMinimal)) return false;
+		StateMinimal other = (StateMinimal) obj;		
+		if (positions.length != other.positions.length) return false;
+		for (int index = 0; index < positions.length; ++index) {
+			if (positions[index] != other.positions[index]) return false;
+		}
+		return true;
+	}
+	
+	@Override
+	public String toString() {
+		return "StateMinimal[" + hashCode() + "]";
+	}
 }
