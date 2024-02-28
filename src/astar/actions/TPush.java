@@ -58,7 +58,7 @@ public class TPush extends TAction {
 	
 	@Override
 	public boolean isPossible(BoardCustom board) {
-		return isPushPossible(board, board.playerX, board.playerY, dir);
+		return isPushPossible(board, board.getPlayerX(), board.getPlayerY(), dir);
 	}
 	
 	/**
@@ -123,9 +123,9 @@ public class TPush extends TAction {
 	@Override
 	public void perform(BoardCustom board) {
 		// MOVE THE BOX
-		board.moveBox(board.playerX + dir.dX, board.playerY + dir.dY, board.playerX + dir.dX + dir.dX, board.playerY + dir.dY + dir.dY);
+		board.moveBox(board.getPlayerX() + dir.dX, board.getPlayerY() + dir.dY, board.getPlayerX() + dir.dX + dir.dX, board.getPlayerY() + dir.dY + dir.dY);
 		// MOVE THE PLAYER
-		board.movePlayer(board.playerX, board.playerY, board.playerX + dir.dX, board.playerY + dir.dY);
+		board.movePlayer(board.getPlayerX(), board.getPlayerY(), board.getPlayerX() + dir.dX, board.getPlayerY() + dir.dY);
 	}
 	
 	/**
@@ -136,10 +136,10 @@ public class TPush extends TAction {
 	@Override
 	public void reverse(BoardCustom board) {
 		// MARK PLAYER POSITION
-		int playerX = board.playerX;
-		int playerY = board.playerY;
+		int playerX = board.getPlayerX();
+		int playerY = board.getPlayerY();
 		// MOVE THE PLAYER
-		board.movePlayer(board.playerX, board.playerY, board.playerX - dir.dX, board.playerY - dir.dY);
+		board.movePlayer(board.getPlayerX(), board.getPlayerY(), board.getPlayerX() - dir.dX, board.getPlayerY() - dir.dY);
 		// MOVE THE BOX
 		board.moveBox(playerX + dir.dX, playerY + dir.dY, playerX, playerY);
 	}

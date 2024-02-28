@@ -59,22 +59,22 @@ public class TMove extends TAction {
 	@Override
 	public boolean isPossible(BoardCustom board) {
 		// PLAYER ON THE EDGE
-		if (!isOnBoard(board, board.playerX, board.playerY, dir)) return false;
+		if (!isOnBoard(board, board.getPlayerX(), board.getPlayerY(), dir)) return false;
 		
 		// TILE TO THE DIR IS FREE
-		if (TTile.isFree(board.tile(board.playerX+dir.dX, board.playerY+dir.dY))) return true;
+		if (TTile.isFree(board.tile(board.getPlayerX()+dir.dX, board.getPlayerY()+dir.dY))) return true;
 				
 		// TILE WE WISH TO MOVE TO IS NOT FREE
 		return false;
 	}
 
     // Custom signature that can work with move from a position that is passed as an argument
-	public int isPossible(BoardCustom board, byte x, byte y) {
+	public int isPossible(BoardCustom board, int x, int y) {
 		// PLAYER ON THE EDGE
 		if (!isOnBoard(board, x, y, dir)) return -1;
 		
 		// TILE TO THE DIR IS FREE
-		if (TTile.isFree(board.tile(x+dir.dX, y+dir.dY))) return board.getPosition(x+dir.dX, y+dir.dY);
+		if (TTile.isFree(board.tile(x+dir.dX, y+dir.dY))) return BoardCustom.getPacked(x+dir.dX, y+dir.dY);
 				
 		// TILE WE WISH TO MOVE TO IS NOT FREE
 		return -1;
@@ -88,7 +88,7 @@ public class TMove extends TAction {
 	@Override
 	public void perform(BoardCustom board) {
 		// MOVE THE PLAYER
-		board.movePlayer(board.playerX, board.playerY, (byte)(board.playerX + dir.dX), (byte)(board.playerY + dir.dY));
+		board.movePlayer(board.getPlayerX(), board.getPlayerY(), board.getPlayerX() + dir.dX, board.getPlayerY() + dir.dY);
 	}
 	
 	/**
@@ -99,7 +99,7 @@ public class TMove extends TAction {
 	@Override
 	public void reverse(BoardCustom board) {
 		// REVERSE THE PLAYER
-		board.movePlayer(board.playerX, board.playerY, (byte)(board.playerX - dir.dX), (byte)(board.playerY - dir.dY));
+		board.movePlayer(board.getPlayerX(), board.getPlayerY(), board.getPlayerX() - dir.dX, board.getPlayerY() - dir.dY);
 	}
 	
 	@Override

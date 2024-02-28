@@ -157,8 +157,8 @@ public class DeadSquareDetector {
             if (!isSimpleDeadlockByTarget[endX][endY][reachableTarget]) continue;
             boolean isUnreachable = true;
             for (Integer boxPosition : b.getBoxes()) {
-                int bx = b.getXFromPosition(boxPosition);
-                int by = b.getYFromPosition(boxPosition);
+                int bx = BoardCustom.getX(boxPosition);
+                int by = BoardCustom.getY(boxPosition);
                 // The moved box won't be at its current place anymore
                 if (bx == startX && by == startY) continue;
                 // At least one box can reach this target
@@ -193,12 +193,12 @@ public class DeadSquareDetector {
             List<Integer> reachableBoxes = new ArrayList<>();
             // Check new place of the moved box
             if (!isSimpleDeadlockByTarget[endX][endY][target]) {
-                reachableBoxes.add(b.getPosition(endX, endY));
+                reachableBoxes.add(b.getPacked(endX, endY));
             }
             boolean isUnreachable = true;
             for (Integer boxPosition : b.getBoxes()) {
-                int bx = b.getXFromPosition(boxPosition);
-                int by = b.getYFromPosition(boxPosition);
+                int bx = BoardCustom.getX(boxPosition);
+                int by = BoardCustom.getY(boxPosition);
                 // The moved box won't be at its current place anymore
                 if (bx == startX && by == startY) continue;
                 // At least one box can reach this target
@@ -275,15 +275,15 @@ public class DeadSquareDetector {
 
     // Look if box at x and y is freeze deadlocked while taking into account that box from source is supposed to be moved to target
     private static boolean isFreezeDeadlock(int startX, int startY, int endX, int endY, int x, int y, BoardCustom b) {
-        if (x <= 0 || x >= b.width() || y <= 0 || y >= b.height()) return true;
+        if (x <= 0 || x >= BoardCustom.width || y <= 0 || y >= BoardCustom.height) return true;
 
-        int position = b.getPosition(x, y);
+        int position = b.getPacked(x, y);
         if (visitedFreezeDeadlocks.containsKey(position)) return visitedFreezeDeadlocks.get(position);
         visitedFreezeDeadlocks.put(position, true);
 
         // Horizontal freeze
         boolean leftOutOfBound = x-1 < 0;
-        boolean rightOutOfBound = x+1 >= b.width();
+        boolean rightOutOfBound = x+1 >= BoardCustom.width;
 
         boolean horizontalWallBlock = leftOutOfBound || rightOutOfBound || TTile.isWall(b.tile(x-1, y)) || TTile.isWall(b.tile(x+1, y));
 
@@ -298,7 +298,7 @@ public class DeadSquareDetector {
 
         // Vertical freeze
         boolean upOutOfBound = y-1 < 0;
-        boolean downOutOfBound = y+1 >= b.height();
+        boolean downOutOfBound = y+1 >= BoardCustom.height;
 
         boolean verticalWallBlock = upOutOfBound || downOutOfBound || TTile.isWall(b.tile(x, y+1)) || TTile.isWall(b.tile(x, y-1));
         if (verticalWallBlock) return true;

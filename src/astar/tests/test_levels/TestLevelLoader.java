@@ -14,7 +14,7 @@ public class TestLevelLoader {
         b.validate();
 
         this.board = b;
-        this.boardCustom = b.makeBoardCompact().makeBoardCustom();
+        this.boardCustom = new BoardCustom(b.makeBoardCompact());
     }
 
     public BoardCustom getBoardCustom() {

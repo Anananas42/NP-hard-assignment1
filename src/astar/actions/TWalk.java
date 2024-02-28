@@ -56,10 +56,10 @@ public class TWalk extends TAction {
 
 	@Override
 	public void perform(BoardCustom board) {
-		this.fromX = board.playerX;
-		this.fromY = board.playerY;
+		this.fromX = board.getPlayerX();
+		this.fromY = board.getPlayerY();
 		if (fromX != x || fromY != y) {
-			board.movePlayer(board.playerX, board.playerY, x, y);
+			board.movePlayer(fromX, fromY, x, y);
 		}
 	}
 

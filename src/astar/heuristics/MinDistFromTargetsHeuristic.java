@@ -9,44 +9,26 @@ import java.util.Queue;
 import astar.BoardCustom;
 import astar.actions.TTile;
 import astar.util.HungarianAlgorithm;
-import game.board.oop.EPlace;
 
 public class MinDistFromTargetsHeuristic implements Heuristic {
     BoardCustom b;
-    // X and Y coordinates of box targets
-    List<Integer> targetX;
-    List<Integer> targetY;
-    List<Integer> targetPositions; // Single number form
+
     // Precompute for a level when creating this heuristic
     HashMap<Integer, Integer> minDistanceMap;
 
     public MinDistFromTargetsHeuristic(BoardCustom board) {
         this.b = board;
-        targetX = new ArrayList<>();
-        targetY = new ArrayList<>();
-        targetPositions = new ArrayList<>();
         minDistanceMap = new HashMap<>();
 
-        for (int y = 0; y < board.height(); ++y) {
-			for (int x = 0; x < board.width(); ++x) {
-				EPlace place = EPlace.fromSlimFlag(board.tiles[x][y]);
-                if (place != null && place.forSomeBox()) {
-                    targetX.add(x);
-                    targetY.add(y);
-                    targetPositions.add(b.getPosition(x, y));
-                }
-            }
-        }
-
-        for (int y = 0; y < board.height(); ++y) {
-			for (int x = 0; x < board.width(); ++x) {
+        for (int y = 0; y < BoardCustom.height; ++y) {
+			for (int x = 0; x < BoardCustom.width; ++x) {
                 int min = Integer.MAX_VALUE;
-                for (int i = 0; i < targetX.size(); i++) {
-                    List<Integer> distances = getShortestPathLength(x, y, false, targetPositions);
+                for (int i = 0; i < BoardCustom.targets.size(); i++) {
+                    List<Integer> distances = getShortestPathLength(x, y, false, BoardCustom.targets);
                     if (distances.isEmpty()) continue; // Walls return empty list
-                    min = Math.min(min, getShortestPathLength(x, y, false, targetPositions).get(0));
+                    min = Math.min(min, getShortestPathLength(x, y, false, BoardCustom.targets).get(0));
                 }
-                minDistanceMap.put(board.getPosition(x, y), min);
+                minDistanceMap.put(BoardCustom.getPacked(x, y), min);
             }
         }
     }
@@ -61,7 +43,7 @@ public class MinDistFromTargetsHeuristic implements Heuristic {
         Queue<Integer> q = new ArrayDeque<Integer>();
         HashMap<Integer, Integer> prevPositions = new HashMap<>();
 
-        int initPosition = b.getPosition(x, y);
+        int initPosition = BoardCustom.getPacked(x, y);
         q.add(initPosition);
 
         int curr = -1;
@@ -90,15 +72,15 @@ public class MinDistFromTargetsHeuristic implements Heuristic {
     }
 
     private int getMinBipartiteDistanceTotal(BoardCustom board) {
-        if (board.boxCount == board.boxInPlaceCount) return 0;
+        if (BoardCustom.boxCount == board.boxInPlaceCount) return 0;
 
         // Each list inside is a list of distances from a box to all targets
         List<Integer> remainingTargets = new ArrayList<>();
-        List<Integer> occupiedTargetPositions = new ArrayList<>();
-        for (Integer target : targetPositions) {
+        List<Integer> occupiedTargetPackeds = new ArrayList<>();
+        for (Integer target : BoardCustom.targets) {
             // Skips targets with a box
-            if (TTile.isBox(board.tile(board.getXFromPosition(target), board.getYFromPosition(target)))) {
-                occupiedTargetPositions.add(target);
+            if (TTile.isBox(board.tile(BoardCustom.getX(target), BoardCustom.getY(target)))) {
+                occupiedTargetPackeds.add(target);
                 continue;
             }
             remainingTargets.add(target);
@@ -108,8 +90,8 @@ public class MinDistFromTargetsHeuristic implements Heuristic {
         List<Integer> boxes = board.getBoxes();
         int i = 0;
         for (Integer b : boxes) {
-            if (occupiedTargetPositions.contains(b)) continue; // Skip boxes already on targets
-            List<Integer> distances = getShortestPathLength(board.getXFromPosition(b), board.getYFromPosition(b), true, remainingTargets);
+            if (occupiedTargetPackeds.contains(b)) continue; // Skip boxes already on targets
+            List<Integer> distances = getShortestPathLength(BoardCustom.getX(b), BoardCustom.getY(b), true, remainingTargets);
             for (int j = 0; j < distances.size(); j++) {
                 distancesFromTargets[i][j] = distances.get(j);
             }

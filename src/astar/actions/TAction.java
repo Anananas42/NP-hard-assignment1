@@ -68,15 +68,12 @@ public abstract class TAction {
 	 * @param steps
 	 * @return
 	 */
-	public static boolean isOnBoard(BoardCustom board, byte tileX, byte tileY, EDirection dir) {
+	public static boolean isOnBoard(BoardCustom board, int tileX, int tileY, EDirection dir) {
 		int targetX = tileX + dir.dX;
-		if (targetX < 0 || targetX >= board.width()) return false;
+		if (targetX < 0 || targetX >= BoardCustom.width) return false;
 		int targetY = tileY + dir.dY;
-		if (targetY < 0 || targetY >= board.height()) return false;
+		if (targetY < 0 || targetY >= BoardCustom.height) return false;
 		return true;
 	}
 
-    public static boolean isOnBoard(BoardCustom board, int tileX, int tileY, EDirection dir) {
-		return isOnBoard(board, (byte)tileX, (byte)tileY, dir);
-	}
 }
