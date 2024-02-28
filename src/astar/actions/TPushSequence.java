@@ -42,11 +42,11 @@ public class TPushSequence extends TAction {
 	
 	@Override
 	public boolean isPossible(BoardCustom board) {
-        boolean isInitialPushPossible = isInitialPushPossible(board, board.playerX, board.playerY, dir);
+        boolean isInitialPushPossible = isInitialPushPossible(board, board.getPlayerX(), board.getPlayerY(), dir);
         if (!isInitialPushPossible) return false;
 
-        int x = board.playerX + dir.dX;
-        int y = board.playerY + dir.dY;
+        int x = board.getPlayerX() + dir.dX;
+        int y = board.getPlayerY() + dir.dY;
         for (int i = 1; i < this.dirs.length; i++) {
             if (!TTile.isWalkable(board.tile(x, y))) return false;
             x += this.dirs[i].dX;
@@ -117,9 +117,9 @@ public class TPushSequence extends TAction {
 	public void perform(BoardCustom board) {
         for (EDirection d : this.dirs) {
             // MOVE THE BOX
-            board.moveBox(board.playerX + d.dX, board.playerY + d.dY, board.playerX + d.dX + d.dX, board.playerY + d.dY + d.dY);
+            board.moveBox(board.getPlayerX() + d.dX, board.getPlayerY() + d.dY, board.getPlayerX() + d.dX + d.dX, board.getPlayerY() + d.dY + d.dY);
             // MOVE THE PLAYER
-            board.movePlayer(board.playerX, board.playerY, board.playerX + d.dX, board.playerY + d.dY);
+            board.movePlayer(board.getPlayerX(), board.getPlayerY(), board.getPlayerX() + d.dX, board.getPlayerY() + d.dY);
         }
 	}
 	
@@ -132,10 +132,10 @@ public class TPushSequence extends TAction {
 	public void reverse(BoardCustom board) {
         for (EDirection d : this.dirs) {
             // MARK PLAYER POSITION
-            int playerX = board.playerX;
-            int playerY = board.playerY;
+            int playerX = board.getPlayerX();
+            int playerY = board.getPlayerY();
             // MOVE THE PLAYER
-            board.movePlayer(board.playerX, board.playerY, board.playerX - d.dX, board.playerY - d.dY);
+            board.movePlayer(board.getPlayerX(), board.getPlayerY(), board.getPlayerX() - d.dX, board.getPlayerY() - d.dY);
             // MOVE THE BOX
             board.moveBox(playerX + d.dX, playerY + d.dY, playerX, playerY);
         }

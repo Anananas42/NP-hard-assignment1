@@ -19,7 +19,7 @@ public class MyAgent extends ArtificialAgent {
 
 	@Override
 	protected List<EDirection> think(BoardCompact boardCompact) {
-		this.board = boardCompact.makeBoardCustom();
+		this.board = new BoardCustom(boardCompact);
 		searchedNodes = 0;
 		long searchStartMillis = System.currentTimeMillis();
 
@@ -29,7 +29,7 @@ public class MyAgent extends ArtificialAgent {
 		
 		List<EDirection> result = new ArrayList<>();
 		if (solution == null) {
-			throw new Error("[MyAgent] No solution found!");
+			throw new Error("[MyAgent] No solution found! Steps: " + searchedNodes);
 		}
 		for (TAction a : solution.actions) {
 			result.addAll(new ArrayList<>(Arrays.asList(a.getDirections())));

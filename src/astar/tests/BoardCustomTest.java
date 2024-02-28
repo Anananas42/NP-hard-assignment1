@@ -7,16 +7,13 @@ import java.util.List;
 import java.util.Set;
 
 import astar.BoardCustom;
-import astar.actions.TAction;
-import astar.actions.TMove;
 import astar.actions.TWalk;
 import astar.tests.test_levels.TestLevelLoader;
-import game.actions.EDirection;
 
 public class BoardCustomTest {
 
     public static void main(String[] args) {
-        File testLevelFile = new File("src/astar/tests/test_levels/test_level3.sok");
+        File testLevelFile = new File("./src/astar/tests/test_levels/test_level3.sok");
         BoardCustom board = new TestLevelLoader(testLevelFile).getBoardCustom();
         System.out.printf("testing level in %s\n\n", testLevelFile.getName());
         board.debugPrint();
@@ -24,53 +21,34 @@ public class BoardCustomTest {
         testPosition(board);
 
         Set<Integer> correctWalkableBoxNeighbours = new HashSet<>();
-        correctWalkableBoxNeighbours.add(board.getPosition(2, 2));
-        correctWalkableBoxNeighbours.add(board.getPosition(4, 2));
-        correctWalkableBoxNeighbours.add(board.getPosition(6, 2));
-        correctWalkableBoxNeighbours.add(board.getPosition(8, 2));
-        correctWalkableBoxNeighbours.add(board.getPosition(4, 3));
-        correctWalkableBoxNeighbours.add(board.getPosition(7, 3));
-        correctWalkableBoxNeighbours.add(board.getPosition(9, 3));
-        correctWalkableBoxNeighbours.add(board.getPosition(5, 3));
-        correctWalkableBoxNeighbours.add(board.getPosition(2, 4));
-        correctWalkableBoxNeighbours.add(board.getPosition(3, 4));
-        correctWalkableBoxNeighbours.add(board.getPosition(2, 6));
+        correctWalkableBoxNeighbours.add(BoardCustom.getPacked(2, 2));
+        correctWalkableBoxNeighbours.add(BoardCustom.getPacked(4, 2));
+        correctWalkableBoxNeighbours.add(BoardCustom.getPacked(6, 2));
+        correctWalkableBoxNeighbours.add(BoardCustom.getPacked(8, 2));
+        correctWalkableBoxNeighbours.add(BoardCustom.getPacked(4, 3));
+        correctWalkableBoxNeighbours.add(BoardCustom.getPacked(7, 3));
+        correctWalkableBoxNeighbours.add(BoardCustom.getPacked(9, 3));
+        correctWalkableBoxNeighbours.add(BoardCustom.getPacked(5, 3));
+        correctWalkableBoxNeighbours.add(BoardCustom.getPacked(2, 4));
+        correctWalkableBoxNeighbours.add(BoardCustom.getPacked(3, 4));
+        correctWalkableBoxNeighbours.add(BoardCustom.getPacked(2, 6));
 
         testWalkableBoxNeighbours(board, correctWalkableBoxNeighbours);
 
         List<List<Integer>> correctPossibleWalks = new ArrayList<>();
         List<Integer> correctWalk = new ArrayList<>();
-        correctWalk.add(board.getPosition(8, 1));
-        correctWalk.add(board.getPosition(8, 2));
+        correctWalk.add(BoardCustom.getPacked(8, 1));
+        correctWalk.add(BoardCustom.getPacked(8, 2));
         correctPossibleWalks.add(correctWalk);
 
         testPossibleWalks(board, correctPossibleWalks);
         
-        List<TAction> actions = board.getActions(new boolean[0][0]);
-        for (TAction a : actions) {
-            System.out.println(a.toString());
-        }
-        TAction lastAction = actions.get(actions.size()-1);
-        lastAction.perform(board);
-        lastAction.perform(board);
-        lastAction.perform(board);
-        new TMove(EDirection.RIGHT).perform(board);
-        new TMove(EDirection.DOWN).perform(board);
 
-        board.debugPrint();
-
-        actions = board.getActions(new boolean[0][0]);
-        for (TAction a : actions) {
-            System.out.println(a.toString());
-        }
-        actions.get(3).perform(board);
-
-        board.debugPrint();
     }
 
     private static void testPosition(BoardCustom b) {
-        if (b.getXFromPosition(b.getPosition(b.width()-1, b.height()-1)) == b.width()-1
-         && b.getYFromPosition(b.getPosition(b.width()-1, b.height()-1)) == b.height()-1){
+        if (BoardCustom.getX(BoardCustom.getPacked(BoardCustom.width-1, BoardCustom.height-1)) == BoardCustom.width-1
+         && BoardCustom.getY(BoardCustom.getPacked(BoardCustom.width-1, BoardCustom.height-1)) == BoardCustom.height-1){
             System.out.println("Position test successful!");
             return;
         }
@@ -87,12 +65,12 @@ public class BoardCustomTest {
 
         System.out.println("-- Answer of size " + walkableBoxNeighbours.size() + " --");
         for (Integer p : walkableBoxNeighbours) {
-            System.out.println("Box x, y - " + b.getXFromPosition(p) + ", " + b.getYFromPosition(p) + " -- Position: " + p);
+            System.out.println("Box x, y - " + BoardCustom.getX(p) + ", " + BoardCustom.getY(p) + " -- Position: " + p);
         }
         
         System.out.println("\n-- Correct answer of size " + correctAnswer.size() + " --");
         for (Integer p : correctAnswer) {
-            System.out.println("Correct Box x, y - " + b.getXFromPosition(p) + ", " + b.getYFromPosition(p) + " -- Position: " + p);
+            System.out.println("Correct Box x, y - " + BoardCustom.getX(p) + ", " + BoardCustom.getY(p) + " -- Position: " + p);
         }
         throw new Error("[FAILED TEST] Walkable box neighbours");
     }
@@ -104,11 +82,13 @@ public class BoardCustomTest {
             return;
         }
 
+        b.debugPrint();
+
         for (int i = 0; i < possibleWalks.size(); i++) {
             List<Integer> w = possibleWalks.get(i);
             System.out.println("-- Walk " + i + " --");
             for (Integer m : w) {
-                System.out.println("Move -> " + b.getXFromPosition(m) + ", " + b.getYFromPosition(m) + " -- Pos: " + m);
+                System.out.println("Move -> " + BoardCustom.getX(m) + ", " + BoardCustom.getY(m) + " -- Pos: " + m);
             }
             System.out.println();
         }
