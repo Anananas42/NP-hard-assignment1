@@ -407,29 +407,35 @@ public class BoardCustom {
 	}
 	
 	public int hashCode() {
-//		if (hash == null) {
-//			hash = (getX(positions[0]) + 5) * 290317 * getX(positions[1]) + (getY(positions[0]) + 7) * 290317 * getY(positions[1]);
-//			for (int i = 1; i < positions.length; ++i) {
-//				hash += getX(positions[i]) * 290317 + getY(positions[i]) * 97;
-//			}
-//		}
-//		return hash;
-        return -1;
+		if (hash == null) {
+            int x = 0;
+            int y = 0;
+            for (int i = 1; i < positions.length; ++i) {
+                x += getX(positions[i]);
+                y += getY(positions[i]);
+            }
+            hash = x << 8 | y;
+        }
+		return hash;
 	}
 	
 	@Override
 	public boolean equals(Object obj) {
 		if (obj == null) return false;
 		if (this == obj) return true;
-//		if (obj.hashCode() != hashCode()) return false;
-		if (!(obj instanceof BoardCustom)) return false;
-		BoardCustom other = (BoardCustom) obj;
-		if (positions.length != other.positions.length) return false;
+        if (!(obj instanceof BoardCustom)) return false;
+        BoardCustom other = (BoardCustom) obj;
         if(positions[0] != other.positions[0]) return false;
+        if (positions.length != other.positions.length) return false;
+		if (obj.hashCode() != hashCode()) return false;
 
         List<Integer> list = new ArrayList<>(positions.length-1);
-        for(int i=1; i< positions.length; i++) list.add(positions[i]);
-        for(int i=1; i< positions.length; i++) list.remove((Object)other.positions[i]);
+        for(int i = 1; i < positions.length; i++) {
+            list.add(positions[i]);
+        }
+        for(int i = 1; i < positions.length; i++) {
+            list.remove((Object)other.positions[i]);
+        }
         return list.isEmpty();
 	}
 	
