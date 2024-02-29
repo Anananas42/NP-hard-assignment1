@@ -16,7 +16,7 @@ import game.board.minimal.StateMinimal;
 import game.board.oop.EEntity;
 import game.board.oop.EPlace;
 import game.board.oop.ESpace;
-
+import utils.ZobristKeys;
 
 
 public class BoardCustom {
@@ -72,6 +72,7 @@ public class BoardCustom {
 				BoardCustom.tiles[x][y] = computeCustomStaticTile(boardCompact, x, y);
 			}
 		}
+        ZobristKeys.initializeKeys();
     }
 
     private BoardCustom(int[] positions, Integer hash, int boxInPlaceCount) {
@@ -405,16 +406,20 @@ public class BoardCustom {
 	public static int getY(int packed) {
 		return packed & Y_MASK;
 	}
-	
+
+    @Override
 	public int hashCode() {
 		if (hash == null) {
-            int x = 0;
-            int y = 0;
+            long hashValue = 0;
+
+            hashValue ^= ZobristKeys.KEYS[getX(positions[0])][getY(positions[0])];
+
             for (int i = 1; i < positions.length; ++i) {
-                x += getX(positions[i]);
-                y += getY(positions[i]);
+                int boxPosition = positions[i];
+                hashValue ^= ZobristKeys.KEYS[getX(boxPosition)][getY(boxPosition)];
             }
-            hash = x << 8 | y;
+
+            hash = (int) hashValue;
         }
 		return hash;
 	}
@@ -427,16 +432,7 @@ public class BoardCustom {
         BoardCustom other = (BoardCustom) obj;
         if(positions[0] != other.positions[0]) return false;
         if (positions.length != other.positions.length) return false;
-		if (obj.hashCode() != hashCode()) return false;
-
-        List<Integer> list = new ArrayList<>(positions.length-1);
-        for(int i = 1; i < positions.length; i++) {
-            list.add(positions[i]);
-        }
-        for(int i = 1; i < positions.length; i++) {
-            list.remove((Object)other.positions[i]);
-        }
-        return list.isEmpty();
+		return obj.hashCode() == hashCode();
 	}
 	
 	@Override
