@@ -247,9 +247,13 @@ public class BoardCustom {
 	 * @param targetTileY
 	 */
 	public void movePlayer(int sourceTileX, int sourceTileY, int targetTileX, int targetTileY) {
-		positions[0] = getPacked(targetTileX, targetTileY);
-        this.hash = null;
-        hashCode();
+		// Remove current position from hash
+        hash ^= ZobristKeys.playerKEYS[getX(positions[0])][getY(positions[0])];
+
+        positions[0] = getPacked(targetTileX, targetTileY);
+
+        // Add new position to hash
+        hash ^= ZobristKeys.playerKEYS[getX(positions[0])][getY(positions[0])];
 	}
 
     public void moveBox(int sourceTileX, int sourceTileY, int targetTileX, int targetTileY) {
@@ -267,15 +271,18 @@ public class BoardCustom {
             break;
         }
 
+        // Remove current position from hash
+        hash ^= ZobristKeys.boxKEYS[getX(positions[index])][getY(positions[index])];
+
         // Overwrite box position
         positions[index] = targetPosition;
+
+        // Add new position to hash
+        hash ^= ZobristKeys.boxKEYS[getX(positions[index])][getY(positions[index])];
 		
 		if (BoardCustom.isTarget(sourceTileX, sourceTileY)) {
 			--boxInPlaceCount;
 		}
-
-        this.hash = null;
-        hashCode();
     }
 
     private List<Integer> getWalkableNeighbours(int position) {
@@ -410,16 +417,14 @@ public class BoardCustom {
     @Override
 	public int hashCode() {
 		if (hash == null) {
-            long hashValue = 0;
+            hash = 0;
 
-            hashValue ^= ZobristKeys.KEYS[getX(positions[0])][getY(positions[0])];
+            hash ^= ZobristKeys.playerKEYS[getX(positions[0])][getY(positions[0])];
 
             for (int i = 1; i < positions.length; ++i) {
                 int boxPosition = positions[i];
-                hashValue ^= ZobristKeys.KEYS[getX(boxPosition)][getY(boxPosition)];
+                hash ^= ZobristKeys.boxKEYS[getX(boxPosition)][getY(boxPosition)];
             }
-
-            hash = (int) hashValue;
         }
 		return hash;
 	}
