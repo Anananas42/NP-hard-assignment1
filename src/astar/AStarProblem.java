@@ -17,8 +17,8 @@ public class AStarProblem implements HeuristicProblem<BoardCustom, TAction> {
     
     public AStarProblem(BoardCustom initialState, BoardCompact boardCompact) {
         this.initState = initialState;
-        this.minDistHeuristic = new MinDistFromTargetsHeuristic(initialState);
         this.isSimpleDeadlock = DeadSquareDetector.detect(boardCompact);
+        this.minDistHeuristic = new MinDistFromTargetsHeuristic(initialState);
     }
 
     public BoardCustom initialState() {

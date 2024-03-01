@@ -8,6 +8,7 @@ import java.util.Queue;
 
 import astar.BoardCustom;
 import astar.actions.TTile;
+import astar.detectors.DeadSquareDetector;
 import astar.util.HungarianAlgorithm;
 
 public class MinDistFromTargetsHeuristic implements Heuristic {
@@ -63,7 +64,7 @@ public class MinDistFromTargetsHeuristic implements Heuristic {
 
             // Get non-wall neighbours
             for (Integer neighbour : b.getNonWallNeighbours(curr)) {
-                if (prevPositions.containsKey(neighbour)) continue; // Already visited
+                if (prevPositions.containsKey(neighbour) || DeadSquareDetector.isSimpleDeadlock[BoardCustom.getX(neighbour)][BoardCustom.getY(neighbour)]) continue; // Already visited
                 q.add(neighbour);
                 prevPositions.put(neighbour, curr);
             }
