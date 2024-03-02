@@ -9,13 +9,13 @@ import astar.actions.TTile;
 import astar.actions.TWalk;
 import astar.actions.TWalkPushSequence;
 import astar.detectors.DeadSquareDetector;
+import astar.util.ZobristKeys;
 import game.actions.EDirection;
 import game.board.compact.BoardCompact;
 import game.board.compact.CTile;
 import game.board.oop.EEntity;
 import game.board.oop.EPlace;
 import game.board.oop.ESpace;
-import utils.ZobristKeys;
 
 
 public class BoardCustom {
