@@ -1,4 +1,4 @@
-package utils;
+package astar.util;
 import astar.BoardCustom;
 
 import java.util.Random;

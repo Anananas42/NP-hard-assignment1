@@ -1,5 +1,3 @@
-package astar;
-
 import game.actions.EDirection;
 import game.actions.compact.CWalk;
 import game.actions.compact.CWalkPush;
@@ -9,7 +7,6 @@ import game.board.compact.CTile;
 import game.board.oop.EEntity;
 import game.board.oop.EPlace;
 import game.board.oop.ESpace;
-import game.board.slim.BoardSlim;
 import game.board.slim.STile;
 import java.util.*;
 
@@ -21,8 +18,8 @@ class AStarProblemNonWeblab implements HeuristicProblemNonWeblab<BoardCustomNonW
     
     public AStarProblemNonWeblab(BoardCustomNonWeblab initialState, BoardCompact boardCompact) {
         this.initState = initialState;
-        this.minDistHeuristic = new MinDistFromTargetsHeuristicNonWeblab(initialState);
         this.isSimpleDeadlock = DeadSquareDetectorNonWeblab.detect(boardCompact);
+        this.minDistHeuristic = new MinDistFromTargetsHeuristicNonWeblab(initialState);
     }
 
     public BoardCustomNonWeblab initialState() {
@@ -53,41 +50,90 @@ class AStarProblemNonWeblab implements HeuristicProblemNonWeblab<BoardCustomNonW
     }
 }
 
-class BoardCustomNonWeblab extends BoardSlim {
-    // List with box positions calculated as x * width + y (List is efficient since number of boxes is small)
-    List<Integer> boxes;
+class BoardCustomNonWeblab {
 
-    // List of possible sequences of positions to get from current player's position next to accessible boxes
-    List<List<Integer>> possibleWalks;
+    // Level data that doesn't change
+    public static int width;
+    public static int height;
+    public static int boxCount;
+    public static byte[][] tiles; // Static tiles (excluding box and player positions)
+    public static List<Integer> targets;
 
-    public BoardCustomNonWeblab(byte width, byte height) {
-        super(width, height);
-        this.boxes = new ArrayList<>();
+    public static final int Y_MASK = (Integer.MAX_VALUE >> 16);
+	
+    // Changing data representing a state
+	/**
+	 * PLAYER
+	 * [0] = player-x, player-y
+	 * 
+	 * BOXES (for n>0)
+	 * [n] = nth-box-x (the first 16bits), nth-box-y (the second 16bits)
+	 */
+	public int[] positions;
+    public int boxInPlaceCount;
+	
+	private Integer hash = null;
+
+    public BoardCustomNonWeblab(BoardCompact boardCompact) {
+        int elements = 1 + boardCompact.boxCount;
+        boxInPlaceCount = boardCompact.boxInPlaceCount;
+		positions = new int[elements];
+		positions[0] = getPacked(boardCompact.playerX, boardCompact.playerY);
+		int index = 1;
+        BoardCustomNonWeblab.targets = new ArrayList<>();
+		for (int x = 0; x < boardCompact.width(); ++x) {
+			for (int y = 0; y < boardCompact.height(); ++y) {
+				if (CTile.isSomeBox(boardCompact.tile(x, y))) {
+					positions[index] = getPacked(x, y);
+					++index;
+				}
+                if (CTile.forSomeBox(boardCompact.tile(x, y))) {
+                    BoardCustomNonWeblab.targets.add(getPacked(x, y));
+                }
+			}
+		}
+
+        BoardCustomNonWeblab.width = boardCompact.width();
+        BoardCustomNonWeblab.height = boardCompact.height();
+		BoardCustomNonWeblab.boxCount = boardCompact.boxCount;
+		
+        BoardCustomNonWeblab.tiles = new byte[width][height];
+		for (int x = 0; x < width; ++x) {
+			for (int y = 0; y < height; ++y) {
+				BoardCustomNonWeblab.tiles[x][y] = computeCustomStaticTile(boardCompact, x, y);
+			}
+		}
+        ZobristKeysNonWeblab.initializeKeys();
     }
 
-    // Initialize information about the state that will change as agent performs actions
-    // but would be costly to recompute from scratch every time
-    // THIS METHOD IS CALLED ONLY ONCE WHEN CREATING THE BOARD 
-    // (then this precomputed result is copied every time and only slightly changed with actions)
-    public void populateDynamicStateDescriptors() {
-        for (int y = 0; y < height(); ++y) {
-			for (int x = 0; x < width(); ++x) {
-                EEntity entity = EEntity.fromSlimFlag(tiles[x][y]);
+    private BoardCustomNonWeblab(int[] positions, Integer hash, int boxInPlaceCount) {
+        this.positions = positions.clone();
+        this.hash = hash;
+        this.boxInPlaceCount = boxInPlaceCount;
+    }
 
-                if (entity == null || !entity.isSomeBox()) continue;
-                boxes.add(getPosition(x, y));
-            }
-        }
+    public int getPlayerX() {
+        return BoardCustomNonWeblab.getX(this.positions[0]);
+    }
+
+    public int getPlayerY() {
+        return BoardCustomNonWeblab.getY(this.positions[0]);
     }
 
     public List<TActionNonWeblab> getActions(boolean[][] isSimpleDeadlock) {
         List<TActionNonWeblab> result = new ArrayList<>();
 
         // Add all pushes from the player's current position
-        result.addAll(getPushesWithoutDeadlock(playerX, playerY, isSimpleDeadlock));
+        result.addAll(getPushesWithoutDeadlock(getPlayerX(), getPlayerY(), isSimpleDeadlock));
         // Add all WalkPush actions
         result.addAll(getWalkPushActions(isSimpleDeadlock));
-        
+
+        // System.out.println("POSSIBLE ACTIONS");
+        // for (TActionNonWeblab a : result) {
+        //     System.out.println(a.toString());
+        // }
+        // debugPrint();
+
         return result;
     }
 
@@ -106,13 +152,15 @@ class BoardCustomNonWeblab extends BoardSlim {
     private List<TPushNonWeblab> getPushesWithoutDeadlock(int x, int y, boolean[][] isSimpleDeadlock) {
         List<TPushNonWeblab> result = new ArrayList<>();
         for (TPushNonWeblab push : TPushNonWeblab.getActions()) { 
-            boolean isPossible = TPushNonWeblab.isPushPossible(this, x, y, push.getDirection());
             EDirection dir = push.getDirection();
+            boolean isPossible = TPushNonWeblab.isPushPossible(this, x, y, dir);
             if (!isPossible                                                             // Illegal move
                  || isSimpleDeadlock[x+dir.dX+dir.dX][y+dir.dY+dir.dY]                  // New box position can't reach any target
+                 || DeadSquareDetectorNonWeblab.isFreezeDeadlock(dir, x, y, this)                // Freeze deadlocks
                 //  || DeadSquareDetectorNonWeblab.isBipartiteDeadlockSimple(dir, x, y, this)       // A target won't have any box that could reach it DISABLED (dont occur in aymeric level set)
                 //  || DeadSquareDetectorNonWeblab.isBipartiteDeadlock(dir, x, y, this)             // Every target can be matched and there are enough boxes to distribute DISABLED (dont occur in aymeric level set)
-                 || DeadSquareDetectorNonWeblab.isFreezeDeadlock(dir, x, y, this)) continue;     // Freeze deadlocks
+                 
+               ) continue;     
             result.add(push);
         }
         
@@ -128,8 +176,8 @@ class BoardCustomNonWeblab extends BoardSlim {
             int[] positionsY = new int[length];
             for (int i = 0; i < positionSequence.size(); i++) {
                 int position = positionSequence.get(i);
-                positionsX[i] = getXFromPosition(position);
-                positionsY[i] = getYFromPosition(position);
+                positionsX[i] = BoardCustomNonWeblab.getX(position);
+                positionsY[i] = BoardCustomNonWeblab.getY(position);
             }
             // Add a TWalkNonWeblab only if the final position enables pushing a box at least in one of the four directions
             boolean isPushPossible = false;
@@ -138,7 +186,7 @@ class BoardCustomNonWeblab extends BoardSlim {
                 if (isPushPossible) break;
             }
             if (!isPushPossible) continue;
-            result.add(TWalkNonWeblab.fromPositions(this, playerX, playerY, positionsX, positionsY));
+            result.add(TWalkNonWeblab.fromPositions(this, getPlayerX(), getPlayerY(), positionsX, positionsY));
         }
 
         return result;
@@ -148,7 +196,7 @@ class BoardCustomNonWeblab extends BoardSlim {
     // This method returns all positions next to boxes that the agent can access
     public List<List<Integer>> getPossibleWalks() {
         // Recompute accessible positions
-        possibleWalks = new ArrayList<>();
+        List<List<Integer>> possibleWalks = new ArrayList<>();
         Set<Integer> destinations = getBoxNeighbourPositions();
 
         // BFS
@@ -156,7 +204,7 @@ class BoardCustomNonWeblab extends BoardSlim {
         Queue<Integer> q = new ArrayDeque<Integer>(); // For uniform cost, we can just use queue. (BFS basically)
         HashMap<Integer, Integer> prevMap = new HashMap<>();
 
-        int initPosition = getPosition(playerX, playerY);
+        int initPosition = positions[0]; // Player
         // costMap.put(initPosition, 0);
         q.add(initPosition);
 
@@ -191,24 +239,36 @@ class BoardCustomNonWeblab extends BoardSlim {
     public Set<Integer> getBoxNeighbourPositions() {
         Set<Integer> result = new HashSet<>();
 
-        for (Integer boxPosition : boxes) {
+        for (Integer boxPosition : getBoxes()) {
             result.addAll(getWalkableNeighbours(boxPosition));
         }
 
         return result;
     }
 
-    @Override
-    public void moveBox(byte sourceTileX, byte sourceTileY, byte targetTileX, byte targetTileY) {
-        super.moveBox(sourceTileX, sourceTileY, targetTileX, targetTileY);
-
-        // Update position of the moved box
-        boxes.remove((Integer)getPosition(sourceTileX, sourceTileY));
-        boxes.add(getPosition(targetTileX, targetTileY));
+    public boolean isBox(int x, int y) {
+        int position = getPacked(x, y);
+        return isBox(position);
     }
 
-    public void moveBox(int sourceTileX, int sourceTileY, int targetTileX, int targetTileY) {
-        moveBox((byte)sourceTileX, (byte)sourceTileY, (byte)targetTileX, (byte)targetTileY);
+    public boolean isBox(int position) {
+        for (int i = 1; i < positions.length; i++) {
+            if (position == positions[i]) return true;
+        }
+        return false;
+    }
+
+    public static boolean isTarget(int x, int y) {
+        int position = getPacked(x, y);
+        return isTarget(position);
+    }
+
+    public static boolean isTarget(int position) {
+        return BoardCustomNonWeblab.targets.contains(position);
+    }
+
+    public boolean isPlayer(int x, int y) {
+        return (x == getPlayerX()) && (y == getPlayerY());
     }
 
     /**
@@ -218,21 +278,51 @@ class BoardCustomNonWeblab extends BoardSlim {
 	 * @param targetTileX
 	 * @param targetTileY
 	 */
-	public void movePlayer(byte sourceTileX, byte sourceTileY, byte targetTileX, byte targetTileY) {
-		super.movePlayer(sourceTileX, sourceTileY, targetTileX, targetTileY);
-        this.nullHash();
+	public void movePlayer(int sourceTileX, int sourceTileY, int targetTileX, int targetTileY) {
+		// Remove current position from hash
+        hash ^= ZobristKeysNonWeblab.playerKEYS[getX(positions[0])][getY(positions[0])];
+
+        positions[0] = getPacked(targetTileX, targetTileY);
+
+        // Add new position to hash
+        hash ^= ZobristKeysNonWeblab.playerKEYS[getX(positions[0])][getY(positions[0])];
 	}
 
-    public void movePlayer(int sourceTileX, int sourceTileY, int targetTileX, int targetTileY) {
-        movePlayer((byte)sourceTileX, (byte)sourceTileY, (byte)targetTileX, (byte)targetTileY);
+    public void moveBox(int sourceTileX, int sourceTileY, int targetTileX, int targetTileY) {
+        int sourcePosition = getPacked(sourceTileX, sourceTileY);
+        int targetPosition = getPacked(targetTileX, targetTileY);
+		
+		if (BoardCustomNonWeblab.isTarget(targetTileX, targetTileY)) {
+			++boxInPlaceCount;
+		}
+
+        int index = -1;
+        for (int i = 1; i < positions.length; i++) {
+            if (positions[i] != sourcePosition) continue;
+            index = i;
+            break;
+        }
+
+        // Remove current position from hash
+        hash ^= ZobristKeysNonWeblab.boxKEYS[getX(positions[index])][getY(positions[index])];
+
+        // Overwrite box position
+        positions[index] = targetPosition;
+
+        // Add new position to hash
+        hash ^= ZobristKeysNonWeblab.boxKEYS[getX(positions[index])][getY(positions[index])];
+		
+		if (BoardCustomNonWeblab.isTarget(sourceTileX, sourceTileY)) {
+			--boxInPlaceCount;
+		}
     }
 
     private List<Integer> getWalkableNeighbours(int position) {
         List<Integer> neighbours = new ArrayList<>();
-        int x = getXFromPosition(position);
-        int y = getYFromPosition(position);
+        int x = getX(position);
+        int y = getY(position);
         for (TMoveNonWeblab m : TMoveNonWeblab.getActions()) { // Get moves in all directions
-            int neighbourPosition = m.isPossible(this, (byte)x, (byte)y); // Check if move in a direction possible
+            int neighbourPosition = m.isPossible(this, x, y); // Check if move in a direction possible
             if (neighbourPosition == -1) continue; // Not possible, ignore this direction
             neighbours.add(neighbourPosition); // Possible, add neighbour position
         }
@@ -242,12 +332,12 @@ class BoardCustomNonWeblab extends BoardSlim {
 
     public List<Integer> getNonWallNeighbours(int position) {
         List<Integer> neighbours = new ArrayList<>();
-        int x = getXFromPosition(position);
-        int y = getYFromPosition(position);
+        int x = getX(position);
+        int y = getY(position);
         for (TMoveNonWeblab m : TMoveNonWeblab.getActions()) { // Get moves in all directions
             EDirection dir = m.getDirection();
-            if (TMoveNonWeblab.isOnBoard(this, (byte)x, (byte)y, m.getDirection()) && !TTileNonWeblab.isWall(tile(x+dir.dX, y+dir.dY))) {
-                neighbours.add(getPosition(x+dir.dX, y+dir.dY));
+            if (TMoveNonWeblab.isOnBoard(this, x, y, m.getDirection()) && !TTileNonWeblab.isWall(tile(x+dir.dX, y+dir.dY))) {
+                neighbours.add(getPacked(x+dir.dX, y+dir.dY));
             }
         }
 
@@ -257,48 +347,29 @@ class BoardCustomNonWeblab extends BoardSlim {
 
     @Override
 	public BoardCustomNonWeblab clone() {
-        BoardCustomNonWeblab result = new BoardCustomNonWeblab(width(), height());
-		result.tiles = new byte[width()][height()];
-		for (int x = 0; x < width(); ++x) {
-			for (int y = 0; y < height(); ++y) {
-				result.tiles[x][y] = tiles[x][y];
-			}			
-		}
-		result.playerX = playerX;
-		result.playerY = playerY;
-		result.boxCount = boxCount;
-		result.boxInPlaceCount = boxInPlaceCount;
-
-        if (this.boxes != null) {
-            result.boxes = new ArrayList<>(this.boxes);
-        }
-
+        BoardCustomNonWeblab result = new BoardCustomNonWeblab(this.positions, this.hashCode(), this.boxInPlaceCount);
         return result;
     }
 
-    public int getPosition(int x, int y) {
-        return x + y * width();
-    }
-
-    public int getXFromPosition(int position) {
-        return position % width();
-    }
-
-    public int getYFromPosition(int position) {
-        return position / width();
-    }
-
     public List<Integer> getBoxes() {
-        return boxes;
+        List<Integer> result = new ArrayList<>();
+        for (int i = 1; i < positions.length; i++) {
+            result.add(positions[i]);
+        }
+        return result;
     }
 
-    @Override
+    public boolean isVictory() {
+		return BoardCustomNonWeblab.boxCount == this.boxInPlaceCount;
+	}
+
     public void debugPrint() {
-		for (int y = 0; y < height(); ++y) {
-			for (int x = 0; x < width(); ++x) {
-				EEntity entity = EEntity.fromSlimFlag(tiles[x][y]);
-				EPlace place = EPlace.fromSlimFlag(tiles[x][y]);
-				ESpace space = ESpace.fromSlimFlag(tiles[x][y]);
+		for (int y = 0; y < height; ++y) {
+			for (int x = 0; x < width; ++x) {
+                byte tile = tile(x, y);
+				EEntity entity = EEntity.fromSlimFlag(tile);
+				EPlace place = EPlace.fromSlimFlag(tile);
+				ESpace space = ESpace.fromSlimFlag(tile);
 				
 				if (entity != null && entity != EEntity.NONE) {
 					System.out.print(entity.getSymbol());
@@ -316,6 +387,95 @@ class BoardCustomNonWeblab extends BoardSlim {
 		}
 	}
 
+    private byte computeCustomStaticTile(BoardCompact board, int x, int y) {
+        int compact = board.tile(x, y);
+		
+		byte staticTile = 0;
+		
+		if (CTile.forSomeBox(compact)) staticTile |= TTileNonWeblab.PLACE_FLAG;		
+		if (CTile.isFree(compact)) return staticTile;
+		if (CTile.isWall(compact)) {
+			staticTile |= TTileNonWeblab.WALL_FLAG;
+			return staticTile;
+		}
+		
+		return staticTile;
+    }
+
+    public byte tile(int x, int y) {
+        byte tile = BoardCustomNonWeblab.tiles[x][y];
+		
+        if (isBox(x, y)) {
+			tile |= TTileNonWeblab.BOX_FLAG;
+		}
+        else if (isPlayer(x, y)) {
+			tile |= TTileNonWeblab.PLAYER_FLAG;
+		}
+		
+		return tile;
+    }
+
+
+    // ------------------------------------ STATE MINIMAL ------------------------------------
+	
+	/**
+	 * Packs [x;y] into single integer.
+	 * @param x
+	 * @param y
+	 * @return
+	 */
+	public static int getPacked(int x, int y) {
+		return x << 16 | y;
+	}
+	
+	/**
+	 * Returns X coordinate from packed value.
+	 * @param packed
+	 * @return
+	 */
+	public static int getX(int packed) {
+		return packed >> 16;
+	}
+	
+	/**
+	 * Returns Y coordinate from packed value.
+	 * @param packed
+	 * @return
+	 */
+	public static int getY(int packed) {
+		return packed & Y_MASK;
+	}
+
+    @Override
+	public int hashCode() {
+		if (hash == null) {
+            hash = 0;
+
+            hash ^= ZobristKeysNonWeblab.playerKEYS[getX(positions[0])][getY(positions[0])];
+
+            for (int i = 1; i < positions.length; ++i) {
+                int boxPosition = positions[i];
+                hash ^= ZobristKeysNonWeblab.boxKEYS[getX(boxPosition)][getY(boxPosition)];
+            }
+        }
+		return hash;
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		if (obj == null) return false;
+		if (this == obj) return true;
+        if (!(obj instanceof BoardCustomNonWeblab)) return false;
+        BoardCustomNonWeblab other = (BoardCustomNonWeblab) obj;
+        if(positions[0] != other.positions[0]) return false;
+        if (positions.length != other.positions.length) return false;
+		return obj.hashCode() == hashCode();
+	}
+	
+	@Override
+	public String toString() {
+		return "BoardCustomNonWeblab[" + hashCode() + "]";
+	}
 }
 
 // A* search
@@ -417,40 +577,23 @@ interface HeuristicNonWeblab {
 
 class MinDistFromTargetsHeuristicNonWeblab implements HeuristicNonWeblab {
     BoardCustomNonWeblab b;
-    // X and Y coordinates of box targets
-    List<Integer> targetX;
-    List<Integer> targetY;
-    List<Integer> targetPositions; // Single number form
+
     // Precompute for a level when creating this heuristic
     HashMap<Integer, Integer> minDistanceMap;
 
     public MinDistFromTargetsHeuristicNonWeblab(BoardCustomNonWeblab board) {
         this.b = board;
-        targetX = new ArrayList<>();
-        targetY = new ArrayList<>();
-        targetPositions = new ArrayList<>();
         minDistanceMap = new HashMap<>();
 
-        for (int y = 0; y < board.height(); ++y) {
-			for (int x = 0; x < board.width(); ++x) {
-				EPlace place = EPlace.fromSlimFlag(board.tiles[x][y]);
-                if (place != null && place.forSomeBox()) {
-                    targetX.add(x);
-                    targetY.add(y);
-                    targetPositions.add(b.getPosition(x, y));
-                }
-            }
-        }
-
-        for (int y = 0; y < board.height(); ++y) {
-			for (int x = 0; x < board.width(); ++x) {
+        for (int y = 0; y < BoardCustomNonWeblab.height; ++y) {
+			for (int x = 0; x < BoardCustomNonWeblab.width; ++x) {
                 int min = Integer.MAX_VALUE;
-                for (int i = 0; i < targetX.size(); i++) {
-                    List<Integer> distances = getShortestPathLength(x, y, false, targetPositions);
+                for (int i = 0; i < BoardCustomNonWeblab.targets.size(); i++) {
+                    List<Integer> distances = getShortestPathLength(x, y, false, BoardCustomNonWeblab.targets);
                     if (distances.isEmpty()) continue; // Walls return empty list
-                    min = Math.min(min, getShortestPathLength(x, y, false, targetPositions).get(0));
+                    min = Math.min(min, getShortestPathLength(x, y, false, BoardCustomNonWeblab.targets).get(0));
                 }
-                minDistanceMap.put(board.getPosition(x, y), min);
+                minDistanceMap.put(BoardCustomNonWeblab.getPacked(x, y), min);
             }
         }
     }
@@ -465,7 +608,7 @@ class MinDistFromTargetsHeuristicNonWeblab implements HeuristicNonWeblab {
         Queue<Integer> q = new ArrayDeque<Integer>();
         HashMap<Integer, Integer> prevPositions = new HashMap<>();
 
-        int initPosition = b.getPosition(x, y);
+        int initPosition = BoardCustomNonWeblab.getPacked(x, y);
         q.add(initPosition);
 
         int curr = -1;
@@ -485,7 +628,7 @@ class MinDistFromTargetsHeuristicNonWeblab implements HeuristicNonWeblab {
 
             // Get non-wall neighbours
             for (Integer neighbour : b.getNonWallNeighbours(curr)) {
-                if (prevPositions.containsKey(neighbour)) continue; // Already visited
+                if (prevPositions.containsKey(neighbour) || DeadSquareDetectorNonWeblab.isSimpleDeadlock[BoardCustomNonWeblab.getX(neighbour)][BoardCustomNonWeblab.getY(neighbour)]) continue; // Already visited
                 q.add(neighbour);
                 prevPositions.put(neighbour, curr);
             }
@@ -494,15 +637,15 @@ class MinDistFromTargetsHeuristicNonWeblab implements HeuristicNonWeblab {
     }
 
     private int getMinBipartiteDistanceTotal(BoardCustomNonWeblab board) {
-        if (board.boxCount == board.boxInPlaceCount) return 0;
+        if (BoardCustomNonWeblab.boxCount == board.boxInPlaceCount) return 0;
 
         // Each list inside is a list of distances from a box to all targets
         List<Integer> remainingTargets = new ArrayList<>();
-        List<Integer> occupiedTargetPositions = new ArrayList<>();
-        for (Integer target : targetPositions) {
+        List<Integer> occupiedTargetPackeds = new ArrayList<>();
+        for (Integer target : BoardCustomNonWeblab.targets) {
             // Skips targets with a box
-            if (TTileNonWeblab.isBox(board.tile(board.getXFromPosition(target), board.getYFromPosition(target)))) {
-                occupiedTargetPositions.add(target);
+            if (TTileNonWeblab.isBox(board.tile(BoardCustomNonWeblab.getX(target), BoardCustomNonWeblab.getY(target)))) {
+                occupiedTargetPackeds.add(target);
                 continue;
             }
             remainingTargets.add(target);
@@ -512,8 +655,8 @@ class MinDistFromTargetsHeuristicNonWeblab implements HeuristicNonWeblab {
         List<Integer> boxes = board.getBoxes();
         int i = 0;
         for (Integer b : boxes) {
-            if (occupiedTargetPositions.contains(b)) continue; // Skip boxes already on targets
-            List<Integer> distances = getShortestPathLength(board.getXFromPosition(b), board.getYFromPosition(b), true, remainingTargets);
+            if (occupiedTargetPackeds.contains(b)) continue; // Skip boxes already on targets
+            List<Integer> distances = getShortestPathLength(BoardCustomNonWeblab.getX(b), BoardCustomNonWeblab.getY(b), true, remainingTargets);
             for (int j = 0; j < distances.size(); j++) {
                 distancesFromTargets[i][j] = distances.get(j);
             }
@@ -668,17 +811,14 @@ abstract  class TActionNonWeblab {
 	 * @param steps
 	 * @return
 	 */
-	public static boolean isOnBoard(BoardCustomNonWeblab board, byte tileX, byte tileY, EDirection dir) {
+	public static boolean isOnBoard(BoardCustomNonWeblab board, int tileX, int tileY, EDirection dir) {
 		int targetX = tileX + dir.dX;
-		if (targetX < 0 || targetX >= board.width()) return false;
+		if (targetX < 0 || targetX >= BoardCustomNonWeblab.width) return false;
 		int targetY = tileY + dir.dY;
-		if (targetY < 0 || targetY >= board.height()) return false;
+		if (targetY < 0 || targetY >= BoardCustomNonWeblab.height) return false;
 		return true;
 	}
 
-    public static boolean isOnBoard(BoardCustomNonWeblab board, int tileX, int tileY, EDirection dir) {
-		return isOnBoard(board, (byte)tileX, (byte)tileY, dir);
-	}
 }
 
 class TWalkNonWeblab extends TActionNonWeblab {
@@ -733,10 +873,10 @@ class TWalkNonWeblab extends TActionNonWeblab {
 
 	@Override
 	public void perform(BoardCustomNonWeblab board) {
-		this.fromX = board.playerX;
-		this.fromY = board.playerY;
+		this.fromX = board.getPlayerX();
+		this.fromY = board.getPlayerY();
 		if (fromX != x || fromY != y) {
-			board.movePlayer(board.playerX, board.playerY, x, y);
+			board.movePlayer(fromX, fromY, x, y);
 		}
 	}
 
@@ -836,7 +976,7 @@ class TPushNonWeblab extends TActionNonWeblab {
 	
 	@Override
 	public boolean isPossible(BoardCustomNonWeblab board) {
-		return isPushPossible(board, board.playerX, board.playerY, dir);
+		return isPushPossible(board, board.getPlayerX(), board.getPlayerY(), dir);
 	}
 	
 	/**
@@ -901,9 +1041,9 @@ class TPushNonWeblab extends TActionNonWeblab {
 	@Override
 	public void perform(BoardCustomNonWeblab board) {
 		// MOVE THE BOX
-		board.moveBox(board.playerX + dir.dX, board.playerY + dir.dY, board.playerX + dir.dX + dir.dX, board.playerY + dir.dY + dir.dY);
+		board.moveBox(board.getPlayerX() + dir.dX, board.getPlayerY() + dir.dY, board.getPlayerX() + dir.dX + dir.dX, board.getPlayerY() + dir.dY + dir.dY);
 		// MOVE THE PLAYER
-		board.movePlayer(board.playerX, board.playerY, board.playerX + dir.dX, board.playerY + dir.dY);
+		board.movePlayer(board.getPlayerX(), board.getPlayerY(), board.getPlayerX() + dir.dX, board.getPlayerY() + dir.dY);
 	}
 	
 	/**
@@ -914,10 +1054,10 @@ class TPushNonWeblab extends TActionNonWeblab {
 	@Override
 	public void reverse(BoardCustomNonWeblab board) {
 		// MARK PLAYER POSITION
-		int playerX = board.playerX;
-		int playerY = board.playerY;
+		int playerX = board.getPlayerX();
+		int playerY = board.getPlayerY();
 		// MOVE THE PLAYER
-		board.movePlayer(board.playerX, board.playerY, board.playerX - dir.dX, board.playerY - dir.dY);
+		board.movePlayer(board.getPlayerX(), board.getPlayerY(), board.getPlayerX() - dir.dX, board.getPlayerY() - dir.dY);
 		// MOVE THE BOX
 		board.moveBox(playerX + dir.dX, playerY + dir.dY, playerX, playerY);
 	}
@@ -980,22 +1120,22 @@ class TMoveNonWeblab extends TActionNonWeblab {
 	@Override
 	public boolean isPossible(BoardCustomNonWeblab board) {
 		// PLAYER ON THE EDGE
-		if (!isOnBoard(board, board.playerX, board.playerY, dir)) return false;
+		if (!isOnBoard(board, board.getPlayerX(), board.getPlayerY(), dir)) return false;
 		
 		// TILE TO THE DIR IS FREE
-		if (TTileNonWeblab.isFree(board.tile(board.playerX+dir.dX, board.playerY+dir.dY))) return true;
+		if (TTileNonWeblab.isFree(board.tile(board.getPlayerX()+dir.dX, board.getPlayerY()+dir.dY))) return true;
 				
 		// TILE WE WISH TO MOVE TO IS NOT FREE
 		return false;
 	}
 
     // Custom signature that can work with move from a position that is passed as an argument
-	public int isPossible(BoardCustomNonWeblab board, byte x, byte y) {
+	public int isPossible(BoardCustomNonWeblab board, int x, int y) {
 		// PLAYER ON THE EDGE
 		if (!isOnBoard(board, x, y, dir)) return -1;
 		
 		// TILE TO THE DIR IS FREE
-		if (TTileNonWeblab.isFree(board.tile(x+dir.dX, y+dir.dY))) return board.getPosition(x+dir.dX, y+dir.dY);
+		if (TTileNonWeblab.isFree(board.tile(x+dir.dX, y+dir.dY))) return BoardCustomNonWeblab.getPacked(x+dir.dX, y+dir.dY);
 				
 		// TILE WE WISH TO MOVE TO IS NOT FREE
 		return -1;
@@ -1009,7 +1149,7 @@ class TMoveNonWeblab extends TActionNonWeblab {
 	@Override
 	public void perform(BoardCustomNonWeblab board) {
 		// MOVE THE PLAYER
-		board.movePlayer(board.playerX, board.playerY, (byte)(board.playerX + dir.dX), (byte)(board.playerY + dir.dY));
+		board.movePlayer(board.getPlayerX(), board.getPlayerY(), board.getPlayerX() + dir.dX, board.getPlayerY() + dir.dY);
 	}
 	
 	/**
@@ -1020,7 +1160,7 @@ class TMoveNonWeblab extends TActionNonWeblab {
 	@Override
 	public void reverse(BoardCustomNonWeblab board) {
 		// REVERSE THE PLAYER
-		board.movePlayer(board.playerX, board.playerY, (byte)(board.playerX - dir.dX), (byte)(board.playerY - dir.dY));
+		board.movePlayer(board.getPlayerX(), board.getPlayerY(), board.getPlayerX() - dir.dX, board.getPlayerY() - dir.dY);
 	}
 	
 	@Override
@@ -1068,11 +1208,11 @@ class TPushSequenceNonWeblab extends TActionNonWeblab {
 	
 	@Override
 	public boolean isPossible(BoardCustomNonWeblab board) {
-        boolean isInitialPushPossible = isInitialPushPossible(board, board.playerX, board.playerY, dir);
+        boolean isInitialPushPossible = isInitialPushPossible(board, board.getPlayerX(), board.getPlayerY(), dir);
         if (!isInitialPushPossible) return false;
 
-        int x = board.playerX + dir.dX;
-        int y = board.playerY + dir.dY;
+        int x = board.getPlayerX() + dir.dX;
+        int y = board.getPlayerY() + dir.dY;
         for (int i = 1; i < this.dirs.length; i++) {
             if (!TTileNonWeblab.isWalkable(board.tile(x, y))) return false;
             x += this.dirs[i].dX;
@@ -1143,9 +1283,9 @@ class TPushSequenceNonWeblab extends TActionNonWeblab {
 	public void perform(BoardCustomNonWeblab board) {
         for (EDirection d : this.dirs) {
             // MOVE THE BOX
-            board.moveBox(board.playerX + d.dX, board.playerY + d.dY, board.playerX + d.dX + d.dX, board.playerY + d.dY + d.dY);
+            board.moveBox(board.getPlayerX() + d.dX, board.getPlayerY() + d.dY, board.getPlayerX() + d.dX + d.dX, board.getPlayerY() + d.dY + d.dY);
             // MOVE THE PLAYER
-            board.movePlayer(board.playerX, board.playerY, board.playerX + d.dX, board.playerY + d.dY);
+            board.movePlayer(board.getPlayerX(), board.getPlayerY(), board.getPlayerX() + d.dX, board.getPlayerY() + d.dY);
         }
 	}
 	
@@ -1158,10 +1298,10 @@ class TPushSequenceNonWeblab extends TActionNonWeblab {
 	public void reverse(BoardCustomNonWeblab board) {
         for (EDirection d : this.dirs) {
             // MARK PLAYER POSITION
-            int playerX = board.playerX;
-            int playerY = board.playerY;
+            int playerX = board.getPlayerX();
+            int playerY = board.getPlayerY();
             // MOVE THE PLAYER
-            board.movePlayer(board.playerX, board.playerY, board.playerX - d.dX, board.playerY - d.dY);
+            board.movePlayer(board.getPlayerX(), board.getPlayerY(), board.getPlayerX() - d.dX, board.getPlayerY() - d.dY);
             // MOVE THE BOX
             board.moveBox(playerX + d.dX, playerY + d.dY, playerX, playerY);
         }
@@ -1172,6 +1312,28 @@ class TPushSequenceNonWeblab extends TActionNonWeblab {
 		return "TPushSequenceNonWeblab[" + dir.toString() + "]";
 	}
 
+}
+
+class ZobristKeysNonWeblab {
+    public static int[][] playerKEYS;
+    public static int[][] boxKEYS;
+
+    static {
+        initializeKeys();
+    }
+
+    public static void initializeKeys() {
+        Random random = new Random(42);
+
+        playerKEYS = new int[BoardCustomNonWeblab.width][BoardCustomNonWeblab.height];
+        boxKEYS = new int[BoardCustomNonWeblab.width][BoardCustomNonWeblab.height];
+        for (int i = 0; i < BoardCustomNonWeblab.width; i++) {
+            for (int j = 0; j < BoardCustomNonWeblab.height; j++){
+                playerKEYS[i][j] = random.nextInt();
+                boxKEYS[i][j] = random.nextInt();
+            }
+        }
+    }
 }
 
 /**
@@ -1583,7 +1745,7 @@ class BipartiteMatcherNonWeblab {
 class DeadSquareDetectorNonWeblab {
     public static boolean[][] isSimpleDeadlock;
     // Mask for each target to compute bipartite deadlocks
-    private static boolean[][][] isSimpleDeadlockByTarget;
+    private static boolean[] isSimpleDeadlockByTarget;
     private static List<Integer> targetX;
     private static List<Integer> targetY;
 
@@ -1652,11 +1814,11 @@ class DeadSquareDetectorNonWeblab {
 			}			
 		}
 
-        isSimpleDeadlockByTarget = new boolean[board.width()][board.height()][targetX.size()];
+        isSimpleDeadlockByTarget = new boolean[board.width() * board.height() * targetX.size()];
         for (int x = 0; x < board.width(); ++x) {
 			for (int y = 0; y < board.height(); ++y) {
                 for (int i = 0; i < targetX.size(); i++) {
-                    isSimpleDeadlockByTarget[x][y][i] = true;
+                    isSimpleDeadlockByTarget[(x + board.width() * y) * i] = true;
                 }
             }
         }
@@ -1676,7 +1838,7 @@ class DeadSquareDetectorNonWeblab {
                 x = remainingX.poll();
                 y = remainingY.poll();
                 isSimpleDeadlock[x][y] = false;
-                isSimpleDeadlockByTarget[x][y][i] = false;
+                isSimpleDeadlockByTarget[(x + board.width() * y) * i] = false;
 
                 // Process possible pulls
                 for (EDirection dir : EDirection.arrows()) {
@@ -1713,22 +1875,22 @@ class DeadSquareDetectorNonWeblab {
         // First get all targets that can be reached by the current box before push, but won't be reachable after push
         List<Integer> reachableTargetIndices = new ArrayList<>();
         for (int t = 0; t < targetX.size(); t++) {
-            if (isSimpleDeadlockByTarget[startX][startY][t]) continue;
+            if (isSimpleDeadlockByTarget[(startX + BoardCustomNonWeblab.width * startY) * t]) continue;
             reachableTargetIndices.add(t);
         }
 
         // For these targets, check if there's still some other box that can reach them
         for (Integer reachableTarget : reachableTargetIndices) {
             // Check new place of the moved box
-            if (!isSimpleDeadlockByTarget[endX][endY][reachableTarget]) continue;
+            if (!isSimpleDeadlockByTarget[(endX + BoardCustomNonWeblab.width * endY) * reachableTarget]) continue;
             boolean isUnreachable = true;
             for (Integer boxPosition : b.getBoxes()) {
-                int bx = b.getXFromPosition(boxPosition);
-                int by = b.getYFromPosition(boxPosition);
+                int bx = BoardCustomNonWeblab.getX(boxPosition);
+                int by = BoardCustomNonWeblab.getY(boxPosition);
                 // The moved box won't be at its current place anymore
                 if (bx == startX && by == startY) continue;
                 // At least one box can reach this target
-                if (!isSimpleDeadlockByTarget[bx][by][reachableTarget]) {
+                if (!isSimpleDeadlockByTarget[(bx + BoardCustomNonWeblab.width * by) * reachableTarget]) {
                     isUnreachable = false;
                     break;
                 }
@@ -1758,17 +1920,17 @@ class DeadSquareDetectorNonWeblab {
         for (int target = 0; target < targetX.size(); target++) {
             List<Integer> reachableBoxes = new ArrayList<>();
             // Check new place of the moved box
-            if (!isSimpleDeadlockByTarget[endX][endY][target]) {
-                reachableBoxes.add(b.getPosition(endX, endY));
+            if (!isSimpleDeadlockByTarget[(endX + BoardCustomNonWeblab.width * endY) * target]) {
+                reachableBoxes.add(b.getPacked(endX, endY));
             }
             boolean isUnreachable = true;
             for (Integer boxPosition : b.getBoxes()) {
-                int bx = b.getXFromPosition(boxPosition);
-                int by = b.getYFromPosition(boxPosition);
+                int bx = BoardCustomNonWeblab.getX(boxPosition);
+                int by = BoardCustomNonWeblab.getY(boxPosition);
                 // The moved box won't be at its current place anymore
                 if (bx == startX && by == startY) continue;
                 // At least one box can reach this target
-                if (!isSimpleDeadlockByTarget[bx][by][target]) {
+                if (!isSimpleDeadlockByTarget[(bx + BoardCustomNonWeblab.width * by) * target]) {
                     isUnreachable = false;
                     reachableBoxes.add(boxPosition);
                 }
@@ -1841,15 +2003,15 @@ class DeadSquareDetectorNonWeblab {
 
     // Look if box at x and y is freeze deadlocked while taking into account that box from source is supposed to be moved to target
     private static boolean isFreezeDeadlock(int startX, int startY, int endX, int endY, int x, int y, BoardCustomNonWeblab b) {
-        if (x <= 0 || x >= b.width() || y <= 0 || y >= b.height()) return true;
+        if (x <= 0 || x >= BoardCustomNonWeblab.width || y <= 0 || y >= BoardCustomNonWeblab.height) return true;
 
-        int position = b.getPosition(x, y);
+        int position = b.getPacked(x, y);
         if (visitedFreezeDeadlocks.containsKey(position)) return visitedFreezeDeadlocks.get(position);
         visitedFreezeDeadlocks.put(position, true);
 
         // Horizontal freeze
         boolean leftOutOfBound = x-1 < 0;
-        boolean rightOutOfBound = x+1 >= b.width();
+        boolean rightOutOfBound = x+1 >= BoardCustomNonWeblab.width;
 
         boolean horizontalWallBlock = leftOutOfBound || rightOutOfBound || TTileNonWeblab.isWall(b.tile(x-1, y)) || TTileNonWeblab.isWall(b.tile(x+1, y));
 
@@ -1864,7 +2026,7 @@ class DeadSquareDetectorNonWeblab {
 
         // Vertical freeze
         boolean upOutOfBound = y-1 < 0;
-        boolean downOutOfBound = y+1 >= b.height();
+        boolean downOutOfBound = y+1 >= BoardCustomNonWeblab.height;
 
         boolean verticalWallBlock = upOutOfBound || downOutOfBound || TTileNonWeblab.isWall(b.tile(x, y+1)) || TTileNonWeblab.isWall(b.tile(x, y-1));
         if (verticalWallBlock) return true;
@@ -1881,7 +2043,44 @@ class DeadSquareDetectorNonWeblab {
 }
 
 class PICorralDetectorNonWeblab {
-    
+    // Tiles containing only walls and targets.
+    private Byte[][] tiles;
+
+    public void constructTiles(Byte[][] boardTiles) {
+        for (int i = 0; i < boardTiles.length; i++) {
+            for (int j = 0; j < boardTiles[0].length; j++) {
+                tiles[i][j] = boardTiles[i][j];
+
+            }
+        }
+    }
+
+    public void detect(BoardCustomNonWeblab board) {
+        int[] positions = board.positions;
+
+        // Construct boxes if they are not in the target places.
+        for(int i = 1; i < positions.length; i++) {
+            int x = board.getX(positions[i]);
+            int y = board.getY(positions[i]);
+            if(tiles[x][y]!=TTileNonWeblab.PLACE_FLAG) {
+                tiles[x][y] = TTileNonWeblab.BOX_FLAG;
+            }
+        }
+
+
+        Queue<Integer> queue = new LinkedList<>();
+
+
+        // Erase boxes from tiles.
+        for(int i = 1; i < positions.length; i++) {
+            int x = board.getX(positions[i]);
+            int y = board.getY(positions[i]);
+            if(tiles[x][y]==TTileNonWeblab.BOX_FLAG) {
+                tiles[x][y] = TTileNonWeblab.NONE_FLAG;
+            }
+        }
+    }
+
 }
 
 class SolutionNonWeblab<S, A> {
