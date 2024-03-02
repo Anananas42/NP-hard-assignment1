@@ -1,6 +1,5 @@
 package game.board.compact;
 
-import astar.BoardCustom;
 import game.board.compressed.BoardCompressed;
 import game.board.compressed.MTile;
 import game.board.compressed.MTile.SubSlimTile;

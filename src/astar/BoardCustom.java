@@ -433,10 +433,10 @@ public class BoardCustom {
 	public boolean equals(Object obj) {
 		if (obj == null) return false;
 		if (this == obj) return true;
-        if (!(obj instanceof BoardCustom)) return false;
-        BoardCustom other = (BoardCustom) obj;
-        if(positions[0] != other.positions[0]) return false;
-        if (positions.length != other.positions.length) return false;
+        // if (!(obj instanceof BoardCustom)) return false;
+        // BoardCustom other = (BoardCustom) obj;
+        // if(positions[0] != other.positions[0]) return false;
+        // if (positions.length != other.positions.length) return false;
 		return obj.hashCode() == hashCode();
 	}
 	

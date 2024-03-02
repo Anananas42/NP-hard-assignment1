@@ -72,6 +72,7 @@ public class MinDistFromTargetsHeuristic implements Heuristic {
         return resultDistances; // Walls return empty list
     }
 
+    @SuppressWarnings("unused")
     private int getMinBipartiteDistanceTotal(BoardCustom board) {
         if (BoardCustom.boxCount == board.boxInPlaceCount) return 0;
 
