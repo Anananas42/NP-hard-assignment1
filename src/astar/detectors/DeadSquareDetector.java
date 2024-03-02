@@ -17,7 +17,7 @@ import game.board.compact.CTile;
 public class DeadSquareDetector {
     public static boolean[][] isSimpleDeadlock;
     // Mask for each target to compute bipartite deadlocks
-    private static boolean[][][] isSimpleDeadlockByTarget;
+    private static boolean[] isSimpleDeadlockByTarget;
     private static List<Integer> targetX;
     private static List<Integer> targetY;
 
@@ -86,11 +86,11 @@ public class DeadSquareDetector {
 			}			
 		}
 
-        isSimpleDeadlockByTarget = new boolean[board.width()][board.height()][targetX.size()];
+        isSimpleDeadlockByTarget = new boolean[board.width() * board.height() * targetX.size()];
         for (int x = 0; x < board.width(); ++x) {
 			for (int y = 0; y < board.height(); ++y) {
                 for (int i = 0; i < targetX.size(); i++) {
-                    isSimpleDeadlockByTarget[x][y][i] = true;
+                    isSimpleDeadlockByTarget[(x + board.width() * y) * i] = true;
                 }
             }
         }
@@ -110,7 +110,7 @@ public class DeadSquareDetector {
                 x = remainingX.poll();
                 y = remainingY.poll();
                 isSimpleDeadlock[x][y] = false;
-                isSimpleDeadlockByTarget[x][y][i] = false;
+                isSimpleDeadlockByTarget[(x + board.width() * y) * i] = false;
 
                 // Process possible pulls
                 for (EDirection dir : EDirection.arrows()) {
@@ -147,14 +147,14 @@ public class DeadSquareDetector {
         // First get all targets that can be reached by the current box before push, but won't be reachable after push
         List<Integer> reachableTargetIndices = new ArrayList<>();
         for (int t = 0; t < targetX.size(); t++) {
-            if (isSimpleDeadlockByTarget[startX][startY][t]) continue;
+            if (isSimpleDeadlockByTarget[(startX + BoardCustom.width * startY) * t]) continue;
             reachableTargetIndices.add(t);
         }
 
         // For these targets, check if there's still some other box that can reach them
         for (Integer reachableTarget : reachableTargetIndices) {
             // Check new place of the moved box
-            if (!isSimpleDeadlockByTarget[endX][endY][reachableTarget]) continue;
+            if (!isSimpleDeadlockByTarget[(endX + BoardCustom.width * endY) * reachableTarget]) continue;
             boolean isUnreachable = true;
             for (Integer boxPosition : b.getBoxes()) {
                 int bx = BoardCustom.getX(boxPosition);
@@ -162,7 +162,7 @@ public class DeadSquareDetector {
                 // The moved box won't be at its current place anymore
                 if (bx == startX && by == startY) continue;
                 // At least one box can reach this target
-                if (!isSimpleDeadlockByTarget[bx][by][reachableTarget]) {
+                if (!isSimpleDeadlockByTarget[(bx + BoardCustom.width * by) * reachableTarget]) {
                     isUnreachable = false;
                     break;
                 }
@@ -192,7 +192,7 @@ public class DeadSquareDetector {
         for (int target = 0; target < targetX.size(); target++) {
             List<Integer> reachableBoxes = new ArrayList<>();
             // Check new place of the moved box
-            if (!isSimpleDeadlockByTarget[endX][endY][target]) {
+            if (!isSimpleDeadlockByTarget[(endX + BoardCustom.width * endY) * target]) {
                 reachableBoxes.add(b.getPacked(endX, endY));
             }
             boolean isUnreachable = true;
@@ -202,7 +202,7 @@ public class DeadSquareDetector {
                 // The moved box won't be at its current place anymore
                 if (bx == startX && by == startY) continue;
                 // At least one box can reach this target
-                if (!isSimpleDeadlockByTarget[bx][by][target]) {
+                if (!isSimpleDeadlockByTarget[(bx + BoardCustom.width * by) * target]) {
                     isUnreachable = false;
                     reachableBoxes.add(boxPosition);
                 }

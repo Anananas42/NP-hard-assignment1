@@ -12,7 +12,6 @@ import astar.detectors.DeadSquareDetector;
 import game.actions.EDirection;
 import game.board.compact.BoardCompact;
 import game.board.compact.CTile;
-import game.board.minimal.StateMinimal;
 import game.board.oop.EEntity;
 import game.board.oop.EPlace;
 import game.board.oop.ESpace;
@@ -125,10 +124,11 @@ public class BoardCustom {
             boolean isPossible = TPush.isPushPossible(this, x, y, dir);
             if (!isPossible                                                             // Illegal move
                  || isSimpleDeadlock[x+dir.dX+dir.dX][y+dir.dY+dir.dY]                  // New box position can't reach any target
+                 || DeadSquareDetector.isFreezeDeadlock(dir, x, y, this)                // Freeze deadlocks
                 //  || DeadSquareDetector.isBipartiteDeadlockSimple(dir, x, y, this)       // A target won't have any box that could reach it DISABLED (dont occur in aymeric level set)
                 //  || DeadSquareDetector.isBipartiteDeadlock(dir, x, y, this)             // Every target can be matched and there are enough boxes to distribute DISABLED (dont occur in aymeric level set)
-                 || DeadSquareDetector.isFreezeDeadlock(dir, x, y, this)
-               ) continue;     // Freeze deadlocks
+                 
+               ) continue;     
             result.add(push);
         }
         
